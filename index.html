@@ -553,6 +553,68 @@ mark{
 .modal__text.is-vertical::-webkit-scrollbar-thumb:hover{ background: rgb(22 18 12 / .55); }
 .ink-defs{ position: absolute; width: 0; height: 0; overflow: hidden; }
 
+/* ============================================================
+   8. 账号与作品发布（演示版表单）
+   ============================================================ */
+.toolbar__row{ flex-wrap: wrap; }
+.authbar{ display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.authbar__who{ font-size: 13px; color: var(--ink-soft); letter-spacing: .04em; white-space: nowrap; }
+.authbar__who b{ color: var(--seal); font-weight: 600; }
+
+.btn-primary{
+  padding: 8px 16px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: opacity .18s;
+}
+.btn-primary:hover{ opacity: .85; }
+.btn-primary[hidden]{ display: none; }
+
+/* 表单弹窗 */
+.modal__panel--form{ width: min(520px, 100%); padding: 36px 32px 26px; }
+.form-note{
+  margin: 0 0 20px;
+  padding: 10px 13px;
+  border-left: 3px solid var(--seal);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--seal) 7%, transparent);
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+.field{ display: grid; gap: 6px; margin-bottom: 14px; }
+.field label{ font-size: 12px; letter-spacing: .1em; color: var(--ink-faint); }
+.field input, .field select, .field textarea{
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  font: inherit; font-size: 14px; color: var(--ink);
+}
+.field textarea{ font-family: var(--serif); font-size: 15px; line-height: 2; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus{
+  outline: 2px solid color-mix(in srgb, var(--seal) 40%, transparent);
+  outline-offset: 1px;
+}
+.field-row{ display: flex; gap: 12px; flex-wrap: wrap; }
+.field-row .field{ flex: 1; min-width: 110px; }
+.form-msg{ min-height: 1.5em; margin: 0 0 12px; font-size: 13px; color: var(--seal); }
+.form-actions{ display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* 刚发布的作品闪两下，让人看见「上墙了」 */
+@keyframes flashIn{
+  0%  { box-shadow: 0 0 0 3px color-mix(in srgb, var(--seal) 55%, transparent); }
+  100%{ box-shadow: var(--shadow); }
+}
+.poem.is-new{ animation: flashIn 1.5s ease-out 2; }
+.act--edit{ color: var(--seal); }
+.act--del:hover{ color: #b23b2e; }
+
 @media (max-width: 720px){
   .hero{ padding: 40px 20px 26px; }
   .hero__vertical{ display: none; }
@@ -605,12 +667,15 @@ mark{
       <option value="comments">最多评论</option>
     </select>
     <button class="btn-ghost" id="reset">重置</button>
+    <div class="authbar" id="authbar"></div>
   </div>
   <div class="filters" id="genreFilters"></div>
   <div class="filters" id="authorFilters"></div>
   <div class="filters">
     <span class="filters__label">其他</span>
-    <button class="chip" id="markOnly" aria-pressed="false">只看收藏<small id="markCount">0</small></button>
+    <button class="chip" id="markOnly" data-toggle="onlyMark" aria-pressed="false">只看收藏<small id="markCount">0</small></button>
+    <button class="chip" id="mineOnly" data-toggle="onlyMine" aria-pressed="false">我的作品<small id="mineCount">0</small></button>
+    <button class="btn-primary" id="btnPublish" hidden>＋ 发布作品</button>
     <span class="toolbar__count" id="hitCount"></span>
   </div>
 </div>
@@ -660,12 +725,86 @@ mark{
   </div>
 </div>
 
+<!-- ========== 登录 / 注册 ========== -->
+<div class="modal" id="authModal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel modal__panel--form" role="dialog" aria-modal="true" aria-labelledby="authHead">
+    <button class="modal__close" data-close aria-label="关闭">&times;</button>
+    <p class="modal__genre">社员入口</p>
+    <h2 class="modal__title" id="authHead">登录东亭诗社</h2>
+    <p class="form-note">
+      <b>演示版，不是真正的登录。</b>账号只存在你自己的浏览器里，不会发往任何服务器；<br>
+      换台设备就登不上了，别人也看不到你发布的作品。请不要填真实密码。
+    </p>
+    <form id="authForm" novalidate>
+      <div class="field">
+        <label for="auNick">笔名</label>
+        <input id="auNick" maxlength="12" autocomplete="username" placeholder="例如：江砚">
+      </div>
+      <div class="field">
+        <label for="auPwd">密码</label>
+        <input id="auPwd" type="password" maxlength="32" autocomplete="current-password" placeholder="至少 4 位">
+      </div>
+      <p class="form-msg" id="auMsg"></p>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" id="auLogin">登录</button>
+        <button type="button" class="btn-ghost" id="auSignup">注册新账号</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== 发布 / 编辑作品 ========== -->
+<div class="modal" id="workModal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel modal__panel--form" role="dialog" aria-modal="true" aria-labelledby="workHead">
+    <button class="modal__close" data-close aria-label="关闭">&times;</button>
+    <p class="modal__genre">社员投稿</p>
+    <h2 class="modal__title" id="workHead">发布作品</h2>
+    <p class="form-note">正文<b>一句一行</b>。标点可写可不写——竖排书法模式会自动去掉标点。发布后会立刻出现在作品墙上。</p>
+    <form id="workForm" novalidate>
+      <div class="field">
+        <label for="wTitle">标题</label>
+        <input id="wTitle" maxlength="20" placeholder="例如：晚归">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="wGenre">体裁</label>
+          <select id="wGenre">
+            <option>七绝</option><option>五绝</option><option>七律</option>
+            <option>五律</option><option>词</option><option>古风</option>
+            <option>现代诗</option><option>其他</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="wAuthor">署名</label>
+          <input id="wAuthor" maxlength="12" placeholder="默认用你的笔名">
+        </div>
+        <div class="field">
+          <label for="wDate">日期</label>
+          <input id="wDate" maxlength="7" placeholder="2026-03">
+        </div>
+      </div>
+      <div class="field">
+        <label for="wLines">正文</label>
+        <textarea id="wLines" rows="9" placeholder="霜落平芜万木稀&#10;孤城鼓角送斜晖&#10;云连远塞书难寄&#10;风卷长河雁不归"></textarea>
+      </div>
+      <p class="form-msg" id="wMsg"></p>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" id="wSave">发布</button>
+        <button type="button" class="btn-ghost" id="wCancel">取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ========== 页脚说明 ========== -->
 <footer class="site-foot">
   <p class="site-foot__inner">
     <b>本页为排版演示（DEMO）</b>：全部诗句与作者名均为虚构示例，仅用于展示板块布局与交互效果，并非真实投稿。<br>
     <b>浏览 / 点赞 / 收藏 / 评论</b>目前只存在访问者自己的浏览器里，换人换设备各看各的；要全站共享需接入后端（Waline / Twikoo 等）。<br>
-    正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据，并把 <code>Store</code> 对象换成接口请求。
+    <b>登录 / 发布作品</b>同样是演示：账号和提交的作品只存在你自己的浏览器里，不会发往服务器，<b>也不是真正的安全认证</b>——真实版本必须由后端做（注册登录接口 + 密码哈希 + 数据库）。<br>
+    正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据，并把 <code>Store / Auth / Works</code> 三个对象换成接口请求。
   </p>
 </footer>
 
@@ -739,12 +878,15 @@ const CLAMP_LINES = 6;                       // 超过几行折叠
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-const state = { q: '', genre: '全部', author: '全部', sort: 'default', onlyMark: false };
+const state = { q: '', genre: '全部', author: '全部', sort: 'default',
+                onlyMark: false, onlyMine: false };
 
 /* ---- 每首诗一个「稳定 ID」----
-   不要用数组下标！否则以后在中间插一首新诗，已有的浏览/点赞会整体错位挂到别的作品上。 */
-const pid  = p => p.id || `${p.title}@${p.author}`;
-const byId = new Map(POEMS.map(p => [pid(p), p]));
+   不要用数组下标！否则以后在中间插一首新诗，已有的浏览/点赞会整体错位挂到别的作品上。
+   用户上传的作品自带 id（u 开头），内置作品的 id 由「标题@作者」生成。 */
+const pid = p => p.id || `${p.title}@${p.author}`;
+/* 注意：不能像以前那样启动时用 Map 缓存一份 —— 用户作品是动态增删的 */
+const findPoem = id => ALL().find(p => pid(p) === id);
 
 /* ============================================================
    ★★ 存储层：目前存在访问者浏览器本地（localStorage）
@@ -791,9 +933,122 @@ const Store = {
     s.comments.push({ name: name || '匿名', text, at: Date.now() });
     this.save(); return s;
   },
-  markedCount(){ return POEMS.filter(p => this.data[pid(p)]?.mark).length; }
+  markedCount(){ return ALL().filter(p => this.data[pid(p)]?.mark).length; }
 };
 Store.load();
+
+/* ============================================================
+   ★★ 账号与作品投稿（同样是「可整体替换」的一层）
+   ------------------------------------------------------------
+   ⚠️⚠️ 这是演示版，不是真正的登录：
+        · 账号、密码摘要、发布的作品全部只存在访问者自己的浏览器里
+        · 没有服务器校验、没有会话、换设备就登不上
+        · 别人看不到你发布的作品（各人看各人的）
+        · 密码只做了一次 SHA-256 摘要，**不构成安全存储**，别填真实密码
+
+   真实版本必须由后端完成：注册/登录接口 + bcrypt/argon2 哈希 +
+   session/token + 数据库。前端这套表单与流程可以原样复用，
+   只要把下面 Auth / Works 两个对象换成接口请求即可。
+   ============================================================ */
+const AUTH_KEY = 'dongting-shishe:auth:v1';
+const WORK_KEY = 'dongting-shishe:works:v1';
+
+const Auth = {
+  users: {},
+  cur: null,
+
+  load(){
+    try {
+      const d = JSON.parse(localStorage.getItem(AUTH_KEY)) || {};
+      this.users = d.users || {};
+      this.cur   = d.cur   || null;
+    } catch { this.users = {}; this.cur = null; }
+  },
+  save(){
+    try { localStorage.setItem(AUTH_KEY, JSON.stringify({ users: this.users, cur: this.cur })); } catch {}
+  },
+  user(){ return this.cur; },
+  exists(nick){ return Object.prototype.hasOwnProperty.call(this.users, nick); },
+
+  /* 演示用摘要：真实项目里这一步必须在后端用 bcrypt/argon2 做 */
+  async digest(pwd, salt){
+    const raw = `${salt}::${pwd}`;
+    if (globalThis.crypto && crypto.subtle){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    let h = 5381;                                  // 没有 SubtleCrypto 时的退化方案
+    for (let i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) | 0;
+    return 'weak' + (h >>> 0).toString(16);
+  },
+
+  async signup(nick, pwd){
+    nick = String(nick).trim();
+    if (nick.length < 2)   return '笔名至少 2 个字';
+    if (nick.length > 12)  return '笔名最多 12 个字';
+    if (this.exists(nick)) return '这个笔名已经被注册了，直接登录吧';
+    if (String(pwd).length < 4) return '密码至少 4 位';
+    const salt = Math.random().toString(36).slice(2, 10);
+    this.users[nick] = { nick, salt, hash: await this.digest(pwd, salt), at: Date.now() };
+    this.cur = nick;
+    this.save();
+    return null;
+  },
+
+  async login(nick, pwd){
+    nick = String(nick).trim();
+    const u = this.users[nick];
+    if (!u) return '没有这个笔名，点右边「注册新账号」';
+    if (await this.digest(pwd, u.salt) !== u.hash) return '密码不对';
+    this.cur = nick;
+    this.save();
+    return null;
+  },
+
+  logout(){ this.cur = null; this.save(); }
+};
+Auth.load();
+
+const Works = {
+  list: [],
+  load(){
+    try { this.list = JSON.parse(localStorage.getItem(WORK_KEY)) || []; }
+    catch { this.list = []; }
+  },
+  save(){
+    try { localStorage.setItem(WORK_KEY, JSON.stringify(this.list)); } catch {}
+  },
+  mine(){ return this.list.filter(w => w.by === Auth.user()); },
+
+  /* 正文按行拆成「一句一行」：去掉空行与首尾空白 */
+  parseLines(text){
+    return String(text).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  },
+
+  add({ title, genre, author, date, lines }){
+    const w = {
+      id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title, genre, author, date, lines,
+      by: Auth.user(), at: Date.now()
+    };
+    this.list.unshift(w);            // 新发布排最前
+    this.save();
+    return w;
+  },
+  update(id, patch){
+    const w = this.list.find(x => x.id === id);
+    if (w){ Object.assign(w, patch, { at: Date.now() }); this.save(); }
+    return w;
+  },
+  remove(id){
+    this.list = this.list.filter(x => x.id !== id);
+    this.save();
+  }
+};
+Works.load();
+
+/* 页面真正渲染的列表 = 用户上传的作品（新→旧）+ 内置示例作品 */
+const ALL = () => [...Works.list, ...POEMS];
 
 /* ---- 初始化页头文案 ---- */
 document.title = `${SITE.name} · 作品`;
@@ -801,9 +1056,9 @@ $('.hero__sub').textContent = `${SITE.name} · ${SITE.subtitle}`;
 $('#stats').textContent = `共 ${POEMS.length} 首 · ${new Set(POEMS.map(p => p.author)).size} 位作者`;
 
 /* ---- 生成筛选项：按出现次数排序 ---- */
-function countBy(key){
+function countBy(key, list){
   const m = new Map();
-  POEMS.forEach(p => m.set(p[key], (m.get(p[key]) || 0) + 1));
+  list.forEach(p => m.set(p[key], (m.get(p[key]) || 0) + 1));
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
 
@@ -819,10 +1074,21 @@ function buildChips(el, label, key, values){
     el.appendChild(b);
   });
 }
-buildChips($('#genreFilters'),  '体裁', 'genre',
-  [['全部', POEMS.length], ...countBy('genre')]);
-buildChips($('#authorFilters'), '作者', 'author',
-  [['全部', POEMS.length], ...countBy('author')]);
+
+/* 作品列表会变（用户发布/删除）、体裁与作者也会变，所以筛选项要能重建。
+   重建后原来选中的体裁/作者可能已经不存在了，这时退回「全部」，
+   否则会筛出一个空列表让人以为作品丢了。 */
+function refreshFilters(){
+  const all = ALL();
+  const alive = (key, v) => v === '全部' || all.some(p => p[key] === v);
+  if (!alive('genre',  state.genre))  state.genre  = '全部';
+  if (!alive('author', state.author)) state.author = '全部';
+
+  buildChips($('#genreFilters'),  '体裁', 'genre',
+    [['全部', all.length], ...countBy('genre', all)]);
+  buildChips($('#authorFilters'), '作者', 'author',
+    [['全部', all.length], ...countBy('author', all)]);
+}
 
 /* ---- 转义：诗句、评论都是「用户可控内容」，插进 innerHTML 前必须转义（防 XSS） ---- */
 const esc = s => String(s).replace(/[&<>"']/g, c =>
@@ -836,6 +1102,7 @@ function match(p){
   if (state.genre  !== '全部' && p.genre  !== state.genre)  return false;
   if (state.author !== '全部' && p.author !== state.author) return false;
   if (state.onlyMark && !Store.stat(pid(p)).mark)           return false;
+  if (state.onlyMine && p.by !== Auth.user())               return false;   // 只看自己发布的
 
   const ts = terms();
   if (!ts.length) return true;
@@ -863,17 +1130,18 @@ const SORTS = {
 };
 
 /* ---- 渲染 ---- */
-function render(){
+function render(newId){
   const ts   = terms();
-  const list = POEMS.filter(match).sort(SORTS[state.sort] || SORTS.default);
+  const list = ALL().filter(match).sort(SORTS[state.sort] || SORTS.default);
   const box  = $('#works');
 
   // 只负责把卡片画出来；「要不要折叠」交给 applyClamp() 按实测高度决定
   box.innerHTML = list.map(p => {
     const id = pid(p), s = Store.stat(id);
+    const mine = p.by && p.by === Auth.user();     // 自己发布的才能编辑/删除
     return `
-      <article class="poem" data-pid="${esc(id)}" tabindex="0" role="button"
-               aria-label="查看《${esc(p.title)}》全文">
+      <article class="poem${p.id === newId ? ' is-new' : ''}" data-pid="${esc(id)}"
+               tabindex="0" role="button" aria-label="查看《${esc(p.title)}》全文">
         <div class="poem__top">
           <span class="tag">${esc(p.genre)}</span>
           <time class="poem__date">${esc(p.date)}</time>
@@ -883,6 +1151,8 @@ function render(){
         <div class="poem__foot">
           <span class="poem__author">${hl(p.author, ts)}</span>
           <div class="poem__acts">
+            ${mine ? `<button type="button" class="act act--edit" data-act="edit" title="编辑这篇">编辑</button>
+                      <button type="button" class="act act--del" data-act="del" title="删除这篇">删除</button>` : ''}
             <span class="act act--plain" title="浏览次数">阅<i>${s.views}</i></span>
             <button type="button" class="act" data-act="like" aria-pressed="${s.liked}" title="点赞">赞<i>${s.likes}</i></button>
             <button type="button" class="act" data-act="mark" aria-pressed="${s.mark}" title="收藏">${s.mark ? '已藏' : '收藏'}</button>
@@ -893,8 +1163,10 @@ function render(){
   }).join('');
 
   $('#empty').hidden = list.length > 0;
-  $('#hitCount').textContent = (ts.length || state.onlyMark) ? `筛出 ${list.length} 首` : '';
+  $('#hitCount').textContent = (ts.length || state.onlyMark || state.onlyMine)
+    ? `筛出 ${list.length} 首` : '';
   $('#markCount').textContent = Store.markedCount();
+  $('#mineCount').textContent = Auth.user() ? Works.mine().length : 0;
   applyClamp();
 }
 
@@ -951,16 +1223,27 @@ function applyClamp(){
   });
 }
 
-/* ---- 工具栏交互（事件委托，筛选后不用重新绑定） ---- */
+/* ---- 交互（事件委托，列表重绘后不用重新绑定） ---- */
 document.addEventListener('click', e => {
-  // 「只看收藏」要在通用 .chip 分支之前判断——它没有 data-key，否则会写坏 state
-  const mo = e.target.closest('#markOnly');
-  if (mo){
-    state.onlyMark = !state.onlyMark;
-    mo.setAttribute('aria-pressed', String(state.onlyMark));
+  // 开关型 chip（只看收藏 / 我的作品）要在通用 .chip 分支之前判断——它们没有 data-key
+  const tog = e.target.closest('.chip[data-toggle]');
+  if (tog){
+    const key = tog.dataset.toggle;
+    state[key] = !state[key];
+    tog.setAttribute('aria-pressed', String(state[key]));
     render();
     return;
   }
+
+  // 账号区
+  if (e.target.closest('#btnLogin')){ openAuth(); return; }
+  if (e.target.closest('#btnLogout')){
+    Auth.logout();
+    Object.assign(state, { onlyMine: false });
+    renderAuthBar(); refreshFilters(); render();
+    return;
+  }
+  if (e.target.closest('#btnPublish')){ openWork(null); return; }
 
   const chip = e.target.closest('.chip');
   if (chip){
@@ -973,14 +1256,24 @@ document.addEventListener('click', e => {
     return;
   }
 
-  // 卡片上的 阅/赞/藏/评：先拦下来，别让点击冒泡去开弹窗
+  // 卡片上的 编辑/删除/阅/赞/藏/评：先拦下来，别让点击冒泡去开弹窗
   const act = e.target.closest('.act[data-act]');
   if (act){
     e.stopPropagation();
     const id   = act.closest('.poem').dataset.pid;
     const kind = act.dataset.act;
+    const owned = Works.list.find(x => x.id === id);      // 只有自己发布的才拿得到
 
-    if (kind === 'cmt'){ openModal(id, true); return; }      // 直接跳到评论区
+    if (kind === 'cmt'){ openModal(id, true); return; }
+    if (kind === 'edit'){ if (owned) openWork(owned); return; }
+    if (kind === 'del'){
+      if (owned && confirm(`把《${owned.title}》删掉？删了就找不回来了。`)){
+        Works.remove(id);
+        refreshFilters();
+        render();
+      }
+      return;
+    }
     if (kind === 'like') Store.toggleLike(id);
     if (kind === 'mark') Store.toggleMark(id);
 
@@ -1009,11 +1302,15 @@ document.addEventListener('click', e => {
 $('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
 $('#sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
 $('#reset').addEventListener('click', () => {
-  Object.assign(state, { q: '', genre: '全部', author: '全部', sort: 'default', onlyMark: false });
+  Object.assign(state, { q: '', genre: '全部', author: '全部', sort: 'default',
+                         onlyMark: false, onlyMine: false });
   $('#q').value = '';
   $('#sort').value = 'default';
   $('#markOnly').setAttribute('aria-pressed', 'false');
-  $$('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.value === '全部')));
+  $('#mineOnly').setAttribute('aria-pressed', 'false');
+  $$('.chip').forEach(c => {
+    if (c.dataset.key) c.setAttribute('aria-pressed', String(c.dataset.value === '全部'));
+  });
   render();
 });
 
@@ -1056,7 +1353,7 @@ function renderComments(id){
 }
 
 function openModal(id, toComments = false){
-  const p = byId.get(id);
+  const p = findPoem(id);
   if (!p) return;
   current = p;
 
@@ -1164,14 +1461,122 @@ $('#mCmtForm').addEventListener('submit', e => {
   syncModal(id); syncCard(id);
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+  if (e.key === 'Escape'){
+    if (!$('#modal').hidden)     closeModal();
+    if (!$('#authModal').hidden) closeAuth();
+    if (!$('#workModal').hidden) closeWork();
+  }
   // 卡片支持键盘打开（只在卡片本身聚焦时拦 Enter/空格，不影响输入框）
   if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('poem')){
     e.preventDefault(); openModal(e.target.dataset.pid);
   }
 });
 
+/* ============================================================
+   账号 / 发布作品 的界面接线
+   ============================================================ */
+let editingId = null;
+
+function renderAuthBar(){
+  const nick = Auth.user();
+  $('#authbar').innerHTML = nick
+    ? `<span class="authbar__who">笔名 <b>${esc(nick)}</b></span>
+       <button type="button" class="btn-ghost" id="btnLogout">退出</button>`
+    : `<button type="button" class="btn-primary" id="btnLogin">登录 / 注册</button>`;
+  $('#btnPublish').hidden = !nick;
+  $('#mineCount').textContent = nick ? Works.mine().length : 0;
+  if (!nick) state.onlyMine = false;
+  $('#mineOnly').setAttribute('aria-pressed', String(state.onlyMine));
+}
+
+function openAuth(){
+  $('#auMsg').textContent = '';
+  $('#authModal').hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('#auNick').focus();
+}
+function closeAuth(){
+  $('#authModal').hidden = true;
+  $('#auPwd').value = '';
+  document.body.style.overflow = '';
+}
+
+function afterLogin(){
+  closeAuth();
+  renderAuthBar();
+  refreshFilters();      // 作者/体裁列表要加上（或去掉）这个人的作品
+  render();
+}
+
+$('#authForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = await Auth.login($('#auNick').value, $('#auPwd').value);
+  if (err) { $('#auMsg').textContent = err; return; }
+  afterLogin();
+});
+$('#auSignup').addEventListener('click', async () => {
+  const err = await Auth.signup($('#auNick').value, $('#auPwd').value);
+  if (err) { $('#auMsg').textContent = err; return; }
+  afterLogin();
+});
+
+/* ---- 发布 / 编辑作品 ---- */
+function openWork(work){
+  editingId = work ? work.id : null;
+  $('#workHead').textContent = work ? '编辑作品' : '发布作品';
+  $('#wSave').textContent    = work ? '保存修改' : '发布';
+  $('#wTitle').value  = work ? work.title  : '';
+  $('#wGenre').value  = work ? work.genre  : '七绝';
+  $('#wAuthor').value = work ? work.author : (Auth.user() || '');
+  $('#wDate').value   = work ? work.date   : new Date().toISOString().slice(0, 7);
+  $('#wLines').value  = work ? work.lines.join('\n') : '';
+  $('#wMsg').textContent = '';
+  $('#workModal').hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('#wTitle').focus();
+}
+function closeWork(){
+  $('#workModal').hidden = true;
+  document.body.style.overflow = '';
+  editingId = null;
+}
+
+$('#wCancel').addEventListener('click', closeWork);
+
+$('#workForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const msg = $('#wMsg');
+  const title  = $('#wTitle').value.trim();
+  const lines  = Works.parseLines($('#wLines').value);
+  const genre  = $('#wGenre').value;
+  const author = $('#wAuthor').value.trim() || Auth.user() || '匿名';
+  const date   = $('#wDate').value.trim() || new Date().toISOString().slice(0, 7);
+
+  if (!Auth.user())       { msg.textContent = '请先登录'; return; }
+  if (!title)             { msg.textContent = '标题不能空'; return; }
+  if (title.length > 20)  { msg.textContent = '标题最多 20 个字'; return; }
+  if (!lines.length)      { msg.textContent = '正文至少要写一句'; return; }
+  if (lines.length > 60)  { msg.textContent = '一次最多 60 句，长诗请分几次发'; return; }
+  if (author.length > 12) { msg.textContent = '署名最多 12 个字'; return; }
+
+  let newId = null;
+  if (editingId){
+    Works.update(editingId, { title, genre, author, date, lines });
+  } else {
+    newId = Works.add({ title, genre, author, date, lines }).id;
+  }
+  closeWork();
+  refreshFilters();
+  render(newId);                                   // 传 id 让新卡片闪两下
+  if (newId) cardOf(newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+$('#authModal').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeAuth(); });
+$('#workModal').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeWork(); });
+
 $('#mCmtHint').textContent = LOCAL_NOTE;
+refreshFilters();
+renderAuthBar();
 render();
 
 /* 字体加载完成、以及窗口尺寸变化（列数变了折行也会变）之后，重新判定要不要折叠 */
