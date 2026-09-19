@@ -602,6 +602,42 @@ mark{
 .ink-defs{ position: absolute; width: 0; height: 0; overflow: hidden; }
 
 /* ============================================================
+   10. 点字查字典（只做横排）
+   ------------------------------------------------------------
+   横排正文里每个汉字都可点，弹出读音（多音字列全部读音）+ 常用义。
+   竖排书法模式**不启用**——那里套着毛边滤镜和挥毫遮罩，
+   小字会被扰动糊掉，而且那是纯欣赏态，不该有交互。
+   ============================================================ */
+.dict-ch{
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit;
+  position: relative;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.dict-ch:hover{ background: color-mix(in srgb, var(--seal) 13%, transparent); }
+.dict-ch:focus-visible{ outline: 2px solid var(--seal); outline-offset: 1px; }
+.dict-ch.is-open{ background: color-mix(in srgb, var(--seal) 20%, transparent); }
+/* 手机上字只有约 19px，手指点不准 —— 用伪元素把热区往外扩到约 38px */
+.dict-ch::after{ content: ''; position: absolute; inset: -9px -4px; }
+
+.dict-pop{
+  position: fixed; z-index: 60;
+  max-width: min(300px, calc(100vw - 16px));
+  padding: 11px 14px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 12px 34px rgb(0 0 0 / .18);
+}
+.dict-pop[hidden]{ display: none; }
+.dict-pop__row{ display: flex; align-items: baseline; gap: 9px; }
+.dict-pop__char{ font-family: var(--serif); font-size: 24px; line-height: 1.1; }
+.dict-pop__py{ font-size: 13px; color: var(--seal); letter-spacing: .05em; }
+.dict-pop__def{ margin-top: 5px; font-size: 13px; line-height: 1.7; color: var(--ink-soft); }
+.dict-pop__src{ margin-top: 7px; font-size: 11px; color: var(--ink-faint); }
+
+/* ============================================================
    8. 账号与作品发布（演示版表单）
    ============================================================ */
 .toolbar__row{ flex-wrap: wrap; }
@@ -1467,6 +1503,13 @@ function applyClamp(){
 
 /* ---- 交互（事件委托，列表重绘后不用重新绑定） ---- */
 document.addEventListener('click', e => {
+  // 字典：点字弹气泡。要在所有其它分支之前判断并 return，
+  // 否则会被卡片/弹窗的分支抢走（虽然 .dict-ch 在弹窗内不会命中 .poem，
+  // 但顺序上先拦下来最稳妥）
+  const dch = e.target.closest('.dict-ch');
+  if (dch){ e.stopPropagation(); showDict(dch); return; }
+  if (!e.target.closest('.dict-pop')) hideDict();   // 点别处收起气泡
+
   // 开关型 chip（只看收藏 / 我的作品）要在通用 .chip 分支之前判断——它们没有 data-key
   const tog = e.target.closest('.chip[data-toggle]');
   if (tog){
@@ -1562,6 +1605,129 @@ $('#reset').addEventListener('click', () => {
   render();
 });
 
+/* ============================================================
+   点字查字典（只做横排）
+   ------------------------------------------------------------
+   数据：dict.json（只含本页用到的 554 个字，26 KB / gzip 约 9 KB）
+        · 读音 mozillazg/pinyin-data（MIT）—— 一个字的**全部**读音
+        · 释义 chinese-xinhua（MIT 声明；内容源自新华字典，授权状态模糊）
+   ⚠️ 加了新诗要重跑 node tools/make-dict.js，否则新字点开是空的
+   ============================================================ */
+const DICT_URL = 'dict.json';
+let DICT = null, dictLoading = null, dictFailed = false;
+
+function loadDict(){
+  if (DICT) return Promise.resolve(DICT);
+  if (!dictLoading){
+    dictLoading = fetch(DICT_URL)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then(j => (DICT = j || {}))
+      .catch(() => {
+        // 注意：直接用 file:// 双击打开时浏览器会拦截本地 fetch（跨域限制），
+        // 这时字典一定拿不到。标个记，弹窗里给出明确提示而不是假装查不到字。
+        dictFailed = true;
+        DICT = {};
+      });
+  }
+  return dictLoading;
+}
+// 页面加载完空闲时预取，等用户点字时通常已经在本地了
+addEventListener('load', () => setTimeout(loadDict, 1200));
+
+/* 横排正文渲染：每个汉字包成可点按钮，搜索命中照旧高亮。
+   ⚠️ 注释和高亮必须**合成一次遍历**：分成两套包裹逻辑一定会标签交叉
+      （比如「曛」既命中搜索又要可点，两段正则各包一层就废了）。
+   代价：高亮从「包整段词」变成「逐字包」——视觉效果几乎一样，
+   因为 mark 的底色是连续的。 */
+function richLine(line, ts){
+  const marked = new Set();
+  if (ts && ts.length){
+    const low = line.toLowerCase();
+    for (const t of ts){
+      let i = low.indexOf(t);
+      while (i >= 0){
+        for (let k = i; k < i + t.length; k++) marked.add(k);
+        i = low.indexOf(t, i + 1);
+      }
+    }
+  }
+  let out = '';
+  [...line].forEach((ch, i) => {
+    let inner = esc(ch);
+    if (marked.has(i)) inner = `<mark>${inner}</mark>`;
+    out += /[\u4e00-\u9fff]/.test(ch)
+      ? `<button type="button" class="dict-ch" data-ch="${esc(ch)}">${inner}</button>`
+      : inner;
+  });
+  return out;
+}
+
+/* ---- 气泡 ---- */
+let dictPop = null, dictBtn = null;
+
+function ensurePop(){
+  if (!dictPop){
+    dictPop = document.createElement('div');
+    dictPop.className = 'dict-pop';
+    dictPop.hidden = true;
+    document.body.appendChild(dictPop);
+  }
+  return dictPop;
+}
+
+function hideDict(){
+  if (dictPop) dictPop.hidden = true;
+  if (dictBtn) dictBtn.classList.remove('is-open');
+  dictBtn = null;
+}
+
+/* 定位三步：居中到字上方 → 贴边夹回视口 → 上方不够就翻到下方 */
+function placePop(el, btn){
+  const r = btn.getBoundingClientRect(), b = el.getBoundingClientRect();
+  let left = r.left + r.width / 2 - b.width / 2;
+  left = Math.max(8, Math.min(left, innerWidth - b.width - 8));
+  const above = r.top - b.height - 10;
+  el.style.left = left + 'px';
+  el.style.top  = (above > 8 ? above : r.bottom + 10) + 'px';
+}
+
+async function showDict(btn){
+  const ch = btn.dataset.ch;
+  if (dictBtn === btn){ hideDict(); return; }        // 再点同一个字就收起
+  hideDict();
+  dictBtn = btn;
+  btn.classList.add('is-open');
+
+  const el = ensurePop();
+  el.innerHTML = `<div class="dict-pop__row"><span class="dict-pop__char">${esc(ch)}</span>
+                  <span class="dict-pop__py">载入中…</span></div>`;
+  el.hidden = false;
+  placePop(el, btn);
+
+  const dict = await loadDict();
+  if (dictBtn !== btn) return;                        // 等待期间用户点了别的字
+  const e = dict[ch];
+  if (dictFailed){
+    el.querySelector('.dict-pop__py').textContent = '字典没加载出来';
+    el.insertAdjacentHTML('beforeend',
+      '<div class="dict-pop__src">本地直接双击打开时浏览器会拦截读取，请通过网址访问</div>');
+  } else if (!e){
+    el.querySelector('.dict-pop__py').textContent = '字典里没有这个字';
+  } else {
+    el.innerHTML = `
+      <div class="dict-pop__row">
+        <span class="dict-pop__char">${esc(ch)}</span>
+        <span class="dict-pop__py">${esc((e.py || []).join(' / ') || '—')}</span>
+      </div>
+      ${e.def ? `<div class="dict-pop__def">${esc(e.def)}</div>` : ''}
+      <div class="dict-pop__src">读音与释义摘自公开字典数据，仅供参考</div>`;
+  }
+  placePop(el, btn);                                  // 内容变了要重新定位
+}
+
+/* 滚动时直接收起：气泡是 fixed 定位，不跟随内容，跟着滚反而会飘 */
+addEventListener('scroll', hideDict, { passive: true });
+
 /* ---- 弹窗 ---- */
 let current = null;
 
@@ -1648,6 +1814,7 @@ function openModal(id, toComments = false){
 }
 
 function closeModal(){
+  hideDict();
   $('#modal').hidden = true;
   document.body.style.overflow = '';
   current = null;
@@ -1659,7 +1826,15 @@ const PUNCT = /[，。、；：？！…—·「」『』（）《》〈〉“�
 const inkText = p => p.lines.map(s => String(s).replace(PUNCT, '')).join('\n');
 
 function setVertical(on){
-  if (current) $('#mText').textContent = on ? inkText(current) : current.lines.join('\n');
+  if (current){
+    if (on){
+      hideDict();                       // 竖排不启用字典（那里有毛边滤镜，小字会糊）
+      $('#mText').textContent = inkText(current);
+    } else {
+      // 横排：每个汉字都做成可点的，点开查读音和常用义
+      $('#mText').innerHTML = current.lines.map(l => richLine(l, terms())).join('\n');
+    }
+  }
   $('#mText').classList.toggle('is-vertical', on);
   $('.modal__panel').classList.toggle('is-ink', on);     // 整块弹窗切宣纸 + 毛笔字
   $('#mVertical').setAttribute('aria-pressed', String(on));
@@ -1735,6 +1910,7 @@ $('#mCmtForm').addEventListener('submit', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){
+    hideDict();
     if (!$('#modal').hidden)     closeModal();
     if (!$('#authModal').hidden) closeAuth();
     if (!$('#workModal').hidden) closeWork();
