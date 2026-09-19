@@ -34,8 +34,20 @@ body{
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.6;
-  /* 宣纸质感：极淡的斜纹，不需要可以删掉这一行 */
-  background-image: repeating-linear-gradient(45deg, rgb(0 0 0 /.012) 0 1px, transparent 1px 4px);
+}
+/* 主页背景：水墨横幅当「桌面壁纸」。
+   用固定定位的伪元素，而不是 background-attachment: fixed ——
+   后者在 iOS Safari 上滚动会抖，而且手机上常常直接失效。
+   z-index:-1 的位置正好在 body 背景之上、所有内容之下。
+   ⚠️ 弹窗（点开诗作）有自己的不透明底色，所以不受这里影响。
+   实测这幅画四角与中心亮度都在 199~210，是均匀浅色区，
+   深色文字压在任何位置都读得清，不需要加蒙版。 */
+body::before{
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('images/bg.webp') center 40% / cover no-repeat;
 }
 button{ font: inherit; color: inherit; cursor: pointer; }
 :focus-visible{ outline: 2px solid var(--seal); outline-offset: 2px; border-radius: 4px; }
@@ -55,7 +67,7 @@ button{ font: inherit; color: inherit; cursor: pointer; }
   font-size: 12px;
   letter-spacing: .22em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-soft);   /* 压在背景画上，加深一档保证对比度 */
 }
 /* 演示标记：交付给组长/组员时一眼能看出这是 DEMO 而不是正式页 */
 .demo-badge{
@@ -85,7 +97,7 @@ button{ font: inherit; color: inherit; cursor: pointer; }
   padding-top: 18px;
   border-top: 1px solid var(--line);
   max-width: 420px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);   /* 同上：页头信息直接压在背景画上 */
   font-size: 13px;
   letter-spacing: .1em;
 }
@@ -121,7 +133,7 @@ button{ font: inherit; color: inherit; cursor: pointer; }
   max-width: 1240px;
   margin: 0 auto;
   padding: 14px 24px 16px;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -344,7 +356,7 @@ button{ font: inherit; color: inherit; cursor: pointer; }
 .site-foot__inner{
   padding-top: 20px;
   border-top: 1px solid var(--line);
-  color: var(--ink-faint);
+  color: var(--ink-soft);   /* 页脚也压在背景画上 */
   font-size: 12.5px;
   line-height: 2;
 }
@@ -723,6 +735,9 @@ mark{
   .modal__panel{ padding: 30px 20px 18px; }
   .modal__panel--form{ padding: 30px 20px 20px; }
   .modal__text.is-vertical{ max-height: 44vh; font-size: 22px; padding: 10px 8px; }
+
+  /* 背景换成小图：手机是竖屏，cover 本来就要放大很多，给大图纯属浪费流量 */
+  body::before{ background-image: url('images/bg-mobile.webp'); background-position: center 34%; }
 }
 
 /* 尊重「减少动效」系统偏好 */
