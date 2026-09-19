@@ -358,6 +358,86 @@ button{ font: inherit; color: inherit; cursor: pointer; }
   font-size: 12px;
 }
 
+/* ============================================================
+   6. 统计与互动：浏览 / 点赞 / 收藏 / 评论
+   ============================================================ */
+.poem__foot{ flex-wrap: wrap; gap: 8px 10px; }
+.poem__acts{
+  display: flex; align-items: center; gap: 1px;
+  margin-left: auto;
+}
+.act{
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  transition: color .18s, background .18s, border-color .18s;
+}
+.act i{ font-style: normal; font-variant-numeric: tabular-nums; }
+button.act:hover{ color: var(--ink); background: rgb(0 0 0 / .045); }
+button.act[aria-pressed="true"]{
+  color: var(--seal);
+  border-color: color-mix(in srgb, var(--seal) 30%, transparent);
+}
+.act--plain{ cursor: default; }
+
+/* 搜索命中高亮 */
+mark{
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--seal) 20%, transparent);
+  color: inherit;
+  font-weight: inherit;
+}
+
+.toolbar__count{ align-self: center; font-size: 12px; color: var(--ink-faint); letter-spacing: .06em; }
+.sortSelect{
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font: inherit; font-size: 13px; color: var(--ink-soft);
+  cursor: pointer;
+}
+
+/* ---- 评论区 ---- */
+.cmt{ margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
+.cmt__title{
+  margin: 0 0 16px;
+  font-family: var(--serif); font-size: 17px; font-weight: 500; letter-spacing: .08em;
+}
+.cmt__title span{ color: var(--ink-faint); font-size: 13px; font-family: var(--sans); }
+.cmt__list{ list-style: none; margin: 0 0 20px; padding: 0; }
+.cmt__item{ padding: 12px 0; border-bottom: 1px dashed var(--line); }
+.cmt__item:last-child{ border-bottom: 0; }
+.cmt__head{ display: flex; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.cmt__name{ font-size: 13px; letter-spacing: .06em; }
+.cmt__time{ font-size: 12px; color: var(--ink-faint); }
+.cmt__text{
+  margin: 0; font-size: 14px; line-height: 1.85;
+  white-space: pre-wrap; word-break: break-word;
+}
+.cmt__empty{ padding: 6px 0 16px; color: var(--ink-faint); font-size: 13px; }
+.cmt__form{ display: grid; gap: 8px; }
+.cmt__form input, .cmt__form textarea{
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font: inherit; font-size: 14px; color: var(--ink);
+  resize: vertical;
+}
+.cmt__form input{ max-width: 220px; }
+.cmt__form textarea{ line-height: 1.8; }
+.cmt__foot{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cmt__hint{ font-size: 12px; color: var(--ink-faint); line-height: 1.6; }
+.cmt__hint.is-warn{ color: var(--seal); }
+
 @media (max-width: 720px){
   .hero{ padding: 40px 20px 26px; }
   .hero__vertical{ display: none; }
@@ -382,7 +462,7 @@ button{ font: inherit; color: inherit; cursor: pointer; }
 <header class="hero">
   <p class="hero__eyebrow">Poetry · 作品板块<span class="demo-badge">DEMO 演示</span></p>
   <h1 class="hero__title">诗社作品</h1>
-  <p class="hero__sub">槐荫诗社 · 同学们写的诗与词</p>
+  <p class="hero__sub">东亭诗社 · 排版演示 · 诗句与作者均为示例数据</p>
   <p class="hero__stats" id="stats">共 0 首 · 0 位作者</p>
   <div class="seal" aria-hidden="true">诗</div>
   <div class="hero__vertical" aria-hidden="true">诗者志之所之也</div>
@@ -392,12 +472,23 @@ button{ font: inherit; color: inherit; cursor: pointer; }
 <div class="toolbar">
   <div class="toolbar__row">
     <label class="search">
-      <input id="q" type="search" placeholder="搜索标题、诗句或作者…" autocomplete="off">
+      <input id="q" type="search" placeholder="搜索诗句、标题或作者…（空格分隔多个词）" autocomplete="off">
     </label>
+    <select class="sortSelect" id="sort" aria-label="排序方式">
+      <option value="default">默认排序</option>
+      <option value="likes">最多点赞</option>
+      <option value="views">最多浏览</option>
+      <option value="comments">最多评论</option>
+    </select>
     <button class="btn-ghost" id="reset">重置</button>
   </div>
   <div class="filters" id="genreFilters"></div>
   <div class="filters" id="authorFilters"></div>
+  <div class="filters">
+    <span class="filters__label">其他</span>
+    <button class="chip" id="markOnly" aria-pressed="false">只看收藏<small id="markCount">0</small></button>
+    <span class="toolbar__count" id="hitCount"></span>
+  </div>
 </div>
 
 <!-- ========== 作品瀑布流 ========== -->
@@ -414,12 +505,28 @@ button{ font: inherit; color: inherit; cursor: pointer; }
     <div class="modal__text" id="mText"></div>
     <div class="modal__meta">
       <span id="mAuthor"></span>
-      <time id="mDate"></time>
+      <span><span id="mViews">阅 0</span> · <time id="mDate"></time></span>
     </div>
     <div class="modal__actions">
+      <button class="btn-ghost" id="mLike" aria-pressed="false">赞 <b id="mLikeN">0</b></button>
+      <button class="btn-ghost" id="mMark" aria-pressed="false">收藏</button>
       <button class="btn-ghost" id="mVertical" aria-pressed="false">竖排阅读</button>
       <button class="btn-ghost" id="mCopy">复制全文</button>
     </div>
+
+    <!-- ========== 评论区 ========== -->
+    <section class="cmt">
+      <h3 class="cmt__title">评论 <span id="mCmtCount"></span></h3>
+      <ul class="cmt__list" id="mCmtList"></ul>
+      <form class="cmt__form" id="mCmtForm" novalidate>
+        <input id="mCmtName" maxlength="16" placeholder="你的名字（可留空）" autocomplete="off">
+        <textarea id="mCmtText" maxlength="200" rows="3" placeholder="说点什么…（最多 200 字）"></textarea>
+        <div class="cmt__foot">
+          <span class="cmt__hint" id="mCmtHint"></span>
+          <button type="submit" class="btn-ghost">发表</button>
+        </div>
+      </form>
+    </section>
   </div>
 </div>
 
@@ -427,7 +534,8 @@ button{ font: inherit; color: inherit; cursor: pointer; }
 <footer class="site-foot">
   <p class="site-foot__inner">
     <b>本页为排版演示（DEMO）</b>：全部诗句与作者名均为虚构示例，仅用于展示板块布局与交互效果，并非真实投稿。<br>
-    正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据。
+    <b>浏览 / 点赞 / 收藏 / 评论</b>目前只存在访问者自己的浏览器里，换人换设备各看各的；要全站共享需接入后端（Waline / Twikoo 等）。<br>
+    正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据，并把 <code>Store</code> 对象换成接口请求。
   </p>
 </footer>
 
@@ -501,7 +609,61 @@ const CLAMP_LINES = 6;                       // 超过几行折叠
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-const state = { q: '', genre: '全部', author: '全部' };
+const state = { q: '', genre: '全部', author: '全部', sort: 'default', onlyMark: false };
+
+/* ---- 每首诗一个「稳定 ID」----
+   不要用数组下标！否则以后在中间插一首新诗，已有的浏览/点赞会整体错位挂到别的作品上。 */
+const pid  = p => p.id || `${p.title}@${p.author}`;
+const byId = new Map(POEMS.map(p => [pid(p), p]));
+
+/* ============================================================
+   ★★ 存储层：目前存在访问者浏览器本地（localStorage）
+   ------------------------------------------------------------
+   ⚠️ 本机版：浏览 / 点赞 / 收藏 / 评论只存在「访问者自己的浏览器」里，
+      换个人、换个设备看到的都是各自独立的数字，互不可见。
+
+   要改成真正的全站共享，只需要重写这一个 Store 对象
+   （把下面的读写换成 Waline / Twikoo / 自建接口的 HTTP 请求），
+   UI 和业务代码一行都不用动。
+   ============================================================ */
+const LOCAL_NOTE = '演示版：评论与点赞只保存在你自己的浏览器里，别人看不到';
+const STORE_KEY  = 'dongting-shishe:stats:v1';
+const newStat    = () => ({ views: 0, likes: 0, liked: false, mark: false, comments: [] });
+
+const Store = {
+  data: {},
+
+  load(){
+    try { this.data = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+    catch { this.data = {}; }                  // 隐私模式下 localStorage 可能不可用
+  },
+  save(){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); } catch {}
+  },
+
+  stat(id){ return this.data[id] || newStat(); },        // 只读，不给没互动过的诗建垃圾数据
+  ensure(id){ return this.data[id] || (this.data[id] = newStat()); },
+
+  bumpView(id){ this.ensure(id).views++; this.save(); },
+  toggleLike(id){
+    const s = this.ensure(id);
+    s.liked = !s.liked;
+    s.likes += s.liked ? 1 : -1;
+    this.save(); return s;
+  },
+  toggleMark(id){
+    const s = this.ensure(id);
+    s.mark = !s.mark;
+    this.save(); return s;
+  },
+  addComment(id, name, text){
+    const s = this.ensure(id);
+    s.comments.push({ name: name || '匿名', text, at: Date.now() });
+    this.save(); return s;
+  },
+  markedCount(){ return POEMS.filter(p => this.data[pid(p)]?.mark).length; }
+};
+Store.load();
 
 /* ---- 初始化页头文案 ---- */
 document.title = `${SITE.name} · 作品`;
@@ -532,44 +694,99 @@ buildChips($('#genreFilters'),  '体裁', 'genre',
 buildChips($('#authorFilters'), '作者', 'author',
   [['全部', POEMS.length], ...countBy('author')]);
 
+/* ---- 转义：诗句、评论都是「用户可控内容」，插进 innerHTML 前必须转义（防 XSS） ---- */
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+/* ---- 关键词：空格分隔的多个词，全部命中才算匹配（AND 逻辑） ---- */
+const terms = () => state.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
 /* ---- 筛选 ---- */
 function match(p){
   if (state.genre  !== '全部' && p.genre  !== state.genre)  return false;
   if (state.author !== '全部' && p.author !== state.author) return false;
-  const q = state.q.trim().toLowerCase();
-  if (!q) return true;
-  return (p.title + p.author + p.genre + p.lines.join('')).toLowerCase().includes(q);
+  if (state.onlyMark && !Store.stat(pid(p)).mark)           return false;
+
+  const ts = terms();
+  if (!ts.length) return true;
+  const hay = [p.title, p.author, p.genre, p.lines.join(' ')].join(' ').toLowerCase();
+  return ts.every(t => hay.includes(t));
 }
 
-/* ---- 转义，防止诗句里的 < > 破坏结构 ---- */
-const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+/* ---- 高亮：先按「原始文本」切分，再分别转义 ----
+   反过来的话（先转义再正则匹配），搜 "<" 会匹配到自己转义出来的 "&lt;"，把标签切坏。 */
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function hl(raw, ts = terms()){
+  if (!ts.length) return esc(raw);
+  const re = new RegExp('(' + ts.map(escapeRe).join('|') + ')', 'gi');
+  return String(raw).split(re)
+    .map((part, i) => (i % 2) ? `<mark>${esc(part)}</mark>` : esc(part))   // 捕获组：奇数下标即命中
+    .join('');
+}
+
+/* ---- 排序 ---- */
+const SORTS = {
+  default:  () => 0,
+  likes:    (a, b) => Store.stat(pid(b)).likes - Store.stat(pid(a)).likes,
+  views:    (a, b) => Store.stat(pid(b)).views - Store.stat(pid(a)).views,
+  comments: (a, b) => Store.stat(pid(b)).comments.length - Store.stat(pid(a)).comments.length
+};
 
 /* ---- 渲染 ---- */
 function render(){
-  const list = POEMS.filter(match);
-  const box = $('#works');
+  const ts   = terms();
+  const list = POEMS.filter(match).sort(SORTS[state.sort] || SORTS.default);
+  const box  = $('#works');
 
   // 只负责把卡片画出来；「要不要折叠」交给 applyClamp() 按实测高度决定
   box.innerHTML = list.map(p => {
-    const id = POEMS.indexOf(p);
+    const id = pid(p), s = Store.stat(id);
     return `
-      <article class="poem" data-id="${id}" tabindex="0" role="button"
+      <article class="poem" data-pid="${esc(id)}" tabindex="0" role="button"
                aria-label="查看《${esc(p.title)}》全文">
         <div class="poem__top">
           <span class="tag">${esc(p.genre)}</span>
           <time class="poem__date">${esc(p.date)}</time>
         </div>
-        <h3 class="poem__title">${esc(p.title)}</h3>
-        <div class="poem__body">${esc(p.lines.join('\n'))}</div>
+        <h3 class="poem__title">${hl(p.title, ts)}</h3>
+        <div class="poem__body">${hl(p.lines.join('\n'), ts)}</div>
         <div class="poem__foot">
-          <span class="poem__author">${esc(p.author)}</span>
-          <span class="poem__hint">点击阅读</span>
+          <span class="poem__author">${hl(p.author, ts)}</span>
+          <div class="poem__acts">
+            <span class="act act--plain" title="浏览次数">阅<i>${s.views}</i></span>
+            <button type="button" class="act" data-act="like" aria-pressed="${s.liked}" title="点赞">赞<i>${s.likes}</i></button>
+            <button type="button" class="act" data-act="mark" aria-pressed="${s.mark}" title="收藏">${s.mark ? '已藏' : '收藏'}</button>
+            <button type="button" class="act" data-act="cmt" title="查看评论">评<i>${s.comments.length}</i></button>
+          </div>
         </div>
       </article>`;
   }).join('');
 
   $('#empty').hidden = list.length > 0;
+  $('#hitCount').textContent = (ts.length || state.onlyMark) ? `筛出 ${list.length} 首` : '';
+  $('#markCount').textContent = Store.markedCount();
   applyClamp();
+}
+
+/* ---- 就地更新一张卡片的计数（不重绘整列，避免丢失滚动位置和展开状态） ---- */
+const cardOf = id => $$('.poem').find(c => c.dataset.pid === id);
+
+function syncCard(id){
+  const card = cardOf(id);
+  if (!card) return;
+  const s = Store.stat(id);
+  card.querySelector('.act--plain').innerHTML  = `阅<i>${s.views}</i>`;
+  card.querySelector('[data-act="cmt"]').innerHTML = `评<i>${s.comments.length}</i>`;
+
+  const like = card.querySelector('[data-act="like"]');
+  like.setAttribute('aria-pressed', String(s.liked));
+  like.innerHTML = `赞<i>${s.likes}</i>`;
+
+  const mark = card.querySelector('[data-act="mark"]');
+  mark.setAttribute('aria-pressed', String(s.mark));
+  mark.textContent = s.mark ? '已藏' : '收藏';
+
+  $('#markCount').textContent = Store.markedCount();
 }
 
 /* ---- 折叠：按「实测高度」而不是行数决定 ----
@@ -606,6 +823,15 @@ function applyClamp(){
 
 /* ---- 工具栏交互（事件委托，筛选后不用重新绑定） ---- */
 document.addEventListener('click', e => {
+  // 「只看收藏」要在通用 .chip 分支之前判断——它没有 data-key，否则会写坏 state
+  const mo = e.target.closest('#markOnly');
+  if (mo){
+    state.onlyMark = !state.onlyMark;
+    mo.setAttribute('aria-pressed', String(state.onlyMark));
+    render();
+    return;
+  }
+
   const chip = e.target.closest('.chip');
   if (chip){
     state[chip.dataset.key] = chip.dataset.value;
@@ -614,6 +840,25 @@ document.addEventListener('click', e => {
         c.setAttribute('aria-pressed', String(c.dataset.value === chip.dataset.value));
     });
     render();
+    return;
+  }
+
+  // 卡片上的 阅/赞/藏/评：先拦下来，别让点击冒泡去开弹窗
+  const act = e.target.closest('.act[data-act]');
+  if (act){
+    e.stopPropagation();
+    const id   = act.closest('.poem').dataset.pid;
+    const kind = act.dataset.act;
+
+    if (kind === 'cmt'){ openModal(id, true); return; }      // 直接跳到评论区
+    if (kind === 'like') Store.toggleLike(id);
+    if (kind === 'mark') Store.toggleMark(id);
+
+    // 正在「只看收藏」时取消了收藏，这张卡要从列表里消失
+    if (kind === 'mark' && state.onlyMark) render();
+    else syncCard(id);
+
+    if (current && pid(current) === id) syncModal(id);
     return;
   }
 
@@ -628,13 +873,16 @@ document.addEventListener('click', e => {
   }
 
   const card = e.target.closest('.poem');
-  if (card) openModal(Number(card.dataset.id));
+  if (card) openModal(card.dataset.pid);
 });
 
 $('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
+$('#sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
 $('#reset').addEventListener('click', () => {
-  state.q = ''; state.genre = '全部'; state.author = '全部';
+  Object.assign(state, { q: '', genre: '全部', author: '全部', sort: 'default', onlyMark: false });
   $('#q').value = '';
+  $('#sort').value = 'default';
+  $('#markOnly').setAttribute('aria-pressed', 'false');
   $$('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.value === '全部')));
   render();
 });
@@ -642,19 +890,61 @@ $('#reset').addEventListener('click', () => {
 /* ---- 弹窗 ---- */
 let current = null;
 
-function openModal(id){
-  const p = POEMS[id];
+const fmtTime = ts => {
+  const d = new Date(ts), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+/* 把一首诗的互动状态同步进弹窗（浏览 / 点赞 / 收藏 / 评论） */
+function syncModal(id){
+  const s = Store.stat(id);
+  $('#mViews').textContent = `阅 ${s.views}`;
+  $('#mLikeN').textContent = s.likes;
+  $('#mLike').setAttribute('aria-pressed', String(s.liked));
+  $('#mMark').setAttribute('aria-pressed', String(s.mark));
+  $('#mMark').textContent  = s.mark ? '已收藏' : '收藏';
+  renderComments(id);
+}
+
+function renderComments(id){
+  const list = Store.stat(id).comments;
+  $('#mCmtCount').textContent = list.length ? `（${list.length}）` : '';
+  const ul = $('#mCmtList');
+  if (!list.length){
+    ul.innerHTML = '<li class="cmt__empty">还没有评论，来说第一句。</li>';
+    return;
+  }
+  // 新的排最前；name / text 都过 esc()，评论里写 <script> 也注入不进来
+  ul.innerHTML = [...list].reverse().map(c => `
+    <li class="cmt__item">
+      <div class="cmt__head">
+        <span class="cmt__name">${esc(c.name)}</span>
+        <time class="cmt__time">${fmtTime(c.at)}</time>
+      </div>
+      <p class="cmt__text">${esc(c.text)}</p>
+    </li>`).join('');
+}
+
+function openModal(id, toComments = false){
+  const p = byId.get(id);
   if (!p) return;
   current = p;
+
   $('#mGenre').textContent  = p.genre;
   $('#mTitle').textContent  = p.title;
   $('#mText').textContent   = p.lines.join('\n');
   $('#mAuthor').textContent = p.author;
   $('#mDate').textContent   = p.date;
+
+  Store.bumpView(id);                       // 打开一次记一次浏览（本机版＝你自己的次数）
+  syncModal(id);
+  syncCard(id);
+
   setVertical(false);
   $('#modal').hidden = false;
   document.body.style.overflow = 'hidden';
-  $('.modal__close').focus();
+  if (toComments) $('#mCmtText').focus();   // 聚焦会自动把评论区滚进视野
+  else $('.modal__close').focus();
 }
 
 function closeModal(){
@@ -688,14 +978,52 @@ $('#mCopy').addEventListener('click', async e => {
   e.target.textContent = '已复制';
   setTimeout(() => e.target.textContent = '复制全文', 1400);
 });
+
+/* ---- 弹窗里的点赞 / 收藏 ---- */
+$('#mLike').addEventListener('click', () => {
+  if (!current) return;
+  const id = pid(current);
+  Store.toggleLike(id);
+  syncModal(id); syncCard(id);
+});
+$('#mMark').addEventListener('click', () => {
+  if (!current) return;
+  const id = pid(current);
+  Store.toggleMark(id);
+  if (state.onlyMark) render(); else syncCard(id);   // 取消收藏后要从「只看收藏」里移出
+  syncModal(id);
+});
+
+/* ---- 发表评论 ---- */
+$('#mCmtForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!current) return;
+
+  const hint = $('#mCmtHint');
+  const text = $('#mCmtText').value.trim();
+  if (!text){
+    hint.textContent = '先写点什么再发表～';
+    hint.classList.add('is-warn');
+    $('#mCmtText').focus();
+    return;
+  }
+
+  const id = pid(current);
+  Store.addComment(id, $('#mCmtName').value.trim().slice(0, 16), text.slice(0, 200));
+  $('#mCmtText').value = '';
+  hint.textContent = LOCAL_NOTE;
+  hint.classList.remove('is-warn');
+  syncModal(id); syncCard(id);
+});
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
-  // 卡片支持键盘打开
+  // 卡片支持键盘打开（只在卡片本身聚焦时拦 Enter/空格，不影响输入框）
   if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('poem')){
-    e.preventDefault(); openModal(Number(e.target.dataset.id));
+    e.preventDefault(); openModal(e.target.dataset.pid);
   }
 });
 
+$('#mCmtHint').textContent = LOCAL_NOTE;
 render();
 
 /* 字体加载完成、以及窗口尺寸变化（列数变了折行也会变）之后，重新判定要不要折叠 */
