@@ -634,6 +634,16 @@ mark{
 .dict-pop__row{ display: flex; align-items: baseline; gap: 9px; }
 .dict-pop__char{ font-family: var(--serif); font-size: 24px; line-height: 1.1; }
 .dict-pop__py{ font-size: 13px; color: var(--seal); letter-spacing: .05em; }
+/* 多音字：一个读音一行，读音与义项左右对齐，便于逐个对照 */
+.dict-pop__item{ display: flex; gap: 9px; margin-top: 5px; }
+.dict-pop__item-py{
+  flex: 0 0 auto;
+  min-width: 3.8em;
+  font-size: 12.5px;
+  color: var(--seal);
+  letter-spacing: .03em;
+}
+.dict-pop__item-def{ flex: 1; min-width: 0; font-size: 13px; line-height: 1.65; color: var(--ink-soft); }
 .dict-pop__def{ margin-top: 5px; font-size: 13px; line-height: 1.7; color: var(--ink-soft); }
 .dict-pop__src{ margin-top: 7px; font-size: 11px; color: var(--ink-faint); }
 
@@ -1714,12 +1724,21 @@ async function showDict(btn){
   } else if (!e){
     el.querySelector('.dict-pop__py').textContent = '字典里没有这个字';
   } else {
+    // 多音字：每个读音单独一行配自己的义，方便逐个对照
+    const defs = e.defs || (e.def ? [{ py: (e.py || [])[0] || '', def: e.def }] : []);
+    const covered = defs.map(d => d.py);
+    const rest = (e.py || []).filter(p => !covered.includes(p));
     el.innerHTML = `
       <div class="dict-pop__row">
         <span class="dict-pop__char">${esc(ch)}</span>
         <span class="dict-pop__py">${esc((e.py || []).join(' / ') || '—')}</span>
       </div>
-      ${e.def ? `<div class="dict-pop__def">${esc(e.def)}</div>` : ''}
+      ${defs.map(d => `<div class="dict-pop__item">
+          <span class="dict-pop__item-py">${esc(d.py)}</span>
+          <span class="dict-pop__item-def">${esc(d.def)}</span>
+        </div>`).join('')}
+      ${defs.length ? '' : '<div class="dict-pop__def">字典里没有这个字的释义</div>'}
+      ${rest.length ? `<div class="dict-pop__src">另有读音（不常用）：${esc(rest.join(' '))}</div>` : ''}
       <div class="dict-pop__src">读音与释义摘自公开字典数据，仅供参考</div>`;
   }
   placePop(el, btn);                                  // 内容变了要重新定位
