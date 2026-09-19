@@ -606,9 +606,14 @@ mark{
    ============================================================ */
 .toolbar__row{ flex-wrap: wrap; }
 
-/* 「筛选」折叠按钮：只在手机显示。手机上工具栏是 sticky 的，
-   筛选全铺开能有 400px 高，等于永久挡掉半屏，所以默认收起 */
-.toolbar__toggle{ display: none; align-items: center; gap: 5px; }
+/* 「筛选」折叠按钮：桌面和手机都显示。
+   原来桌面是把筛选全部铺开（体裁 + 作者 + 其他要占四行），
+   现在改成和手机一致——按了才展开，工具栏平时只占一行，
+   首屏能多露出作品。
+   折叠不等于筛选失效：按钮上的朱砂角标会显示生效的条件数量。 */
+.toolbar__toggle{ display: inline-flex; align-items: center; gap: 5px; }
+.toolbar__more{ display: none; }
+.toolbar__more.is-open{ display: block; margin-top: 10px; }
 .toolbar__badge{
   min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 999px;
@@ -737,16 +742,14 @@ mark{
   .hero__stats{ margin-top: 10px; padding-top: 8px; font-size: 12px; max-width: none; }
   .seal{ top: 16px; right: 16px; width: 46px; height: 46px; }
 
-  /* 工具栏：只留搜索 + 筛选按钮 + 账号，其余收进折叠面板 */
+  /* 工具栏：只留搜索 + 筛选按钮 + 账号 */
   .toolbar{ padding: 8px 16px 10px; }
   .toolbar__row{ margin-bottom: 0; gap: 8px; }
   /* min-width:0 是关键：否则搜索框不肯收缩到内容宽度以下，
      390px 的真机上会把「筛选」和登录按钮挤出屏幕 */
   .search{ max-width: none; min-width: 0; }
   .search input{ padding: 9px 13px; font-size: 15px; }   /* 15px 以下 iOS 会自动放大页面 */
-  .toolbar__toggle{ display: inline-flex; padding: 8px 12px; }
-  .toolbar__more{ display: none; }
-  .toolbar__more.is-open{ display: block; margin-top: 10px; }
+  .toolbar__toggle{ padding: 8px 12px; }
   .toolbar__row--sub{ margin-bottom: 6px; }
 
   /* 筛选行改成单行横滑，不再换行堆高 */
