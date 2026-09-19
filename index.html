@@ -566,6 +566,17 @@ mark{
    8. 账号与作品发布（演示版表单）
    ============================================================ */
 .toolbar__row{ flex-wrap: wrap; }
+
+/* 「筛选」折叠按钮：只在手机显示。手机上工具栏是 sticky 的，
+   筛选全铺开能有 400px 高，等于永久挡掉半屏，所以默认收起 */
+.toolbar__toggle{ display: none; align-items: center; gap: 5px; }
+.toolbar__badge{
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--seal); color: #fff;
+  font-size: 11px; line-height: 16px; text-align: center;
+}
+.toolbar__row--sub{ margin-bottom: 2px; }
 .authbar{ display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .authbar__who{ font-size: 13px; color: var(--ink-soft); letter-spacing: .04em; white-space: nowrap; }
 .authbar__who b{ color: var(--seal); font-weight: 600; }
@@ -671,15 +682,47 @@ mark{
 }
 
 @media (max-width: 720px){
-  .hero{ padding: 40px 20px 26px; }
+  /* ---- 首屏要让作品露出来：hero 与工具栏一起收紧 ---- */
+  .hero{ padding: 22px 16px 14px; }
   .hero__vertical{ display: none; }
-  .seal{ top: 40px; right: 20px; width: 56px; height: 56px; }
-  .toolbar{ padding: 12px 20px 14px; }
-  .works{ padding: 22px 20px 60px; column-gap: 16px; }
-  .site-foot{ padding: 0 20px 48px; }
-  .poem{ padding: 18px 18px 14px; margin-bottom: 16px; }
-  .modal__panel{ padding: 32px 22px 20px; }
-  .modal__text.is-vertical{ max-height: 44vh; font-size: 22px; }
+  .hero__eyebrow{ margin-bottom: 6px; font-size: 11px; }
+  .hero__title{ font-size: 30px; }
+  .hero__sub{ margin-top: 8px; font-size: 13px; }
+  .hero__stats{ margin-top: 10px; padding-top: 8px; font-size: 12px; max-width: none; }
+  .seal{ top: 16px; right: 16px; width: 46px; height: 46px; }
+
+  /* 工具栏：只留搜索 + 筛选按钮 + 账号，其余收进折叠面板 */
+  .toolbar{ padding: 8px 16px 10px; }
+  .toolbar__row{ margin-bottom: 0; gap: 8px; }
+  /* min-width:0 是关键：否则搜索框不肯收缩到内容宽度以下，
+     390px 的真机上会把「筛选」和登录按钮挤出屏幕 */
+  .search{ max-width: none; min-width: 0; }
+  .search input{ padding: 9px 13px; font-size: 15px; }   /* 15px 以下 iOS 会自动放大页面 */
+  .toolbar__toggle{ display: inline-flex; padding: 8px 12px; }
+  .toolbar__more{ display: none; }
+  .toolbar__more.is-open{ display: block; margin-top: 10px; }
+  .toolbar__row--sub{ margin-bottom: 6px; }
+
+  /* 筛选行改成单行横滑，不再换行堆高 */
+  .filters{
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar{ display: none; }
+  .filters .filters__label, .filters .chip, .filters .btn-primary{ flex: 0 0 auto; }
+
+  .works{ padding: 14px 16px 56px; column-gap: 16px; }
+  .site-foot{ padding: 0 16px 44px; }
+  .poem{ padding: 16px 16px 12px; margin-bottom: 14px; }
+  /* 封面矮一点：手机上一张 4:5 的竖幅封面就有 420px 高，太占屏 */
+  .poem__cover{ aspect-ratio: 4 / 3; margin-bottom: 12px; }
+  .modal__panel{ padding: 30px 20px 18px; }
+  .modal__panel--form{ padding: 30px 20px 20px; }
+  .modal__text.is-vertical{ max-height: 44vh; font-size: 22px; padding: 10px 8px; }
 }
 
 /* 尊重「减少动效」系统偏好 */
@@ -713,25 +756,35 @@ mark{
 <div class="toolbar">
   <div class="toolbar__row">
     <label class="search">
-      <input id="q" type="search" placeholder="搜索诗句、标题或作者…（空格分隔多个词）" autocomplete="off">
+      <input id="q" type="search" placeholder="搜诗句、标题或作者…"
+             title="支持多个关键词，用空格分隔（全部命中才算符合）" autocomplete="off">
     </label>
-    <select class="sortSelect" id="sort" aria-label="排序方式">
-      <option value="default">默认排序</option>
-      <option value="likes">最多点赞</option>
-      <option value="views">最多浏览</option>
-      <option value="comments">最多评论</option>
-    </select>
-    <button class="btn-ghost" id="reset">重置</button>
+    <button class="btn-ghost toolbar__toggle" id="filterToggle"
+            aria-expanded="false" aria-controls="toolbarMore">
+      筛选<span class="toolbar__badge" id="filterBadge" hidden>0</span>
+    </button>
     <div class="authbar" id="authbar"></div>
   </div>
-  <div class="filters" id="genreFilters"></div>
-  <div class="filters" id="authorFilters"></div>
-  <div class="filters">
-    <span class="filters__label">其他</span>
-    <button class="chip" id="markOnly" data-toggle="onlyMark" aria-pressed="false">只看收藏<small id="markCount">0</small></button>
-    <button class="chip" id="mineOnly" data-toggle="onlyMine" aria-pressed="false">我的作品<small id="mineCount">0</small></button>
-    <button class="btn-primary" id="btnPublish" hidden>＋ 发布作品</button>
-    <span class="toolbar__count" id="hitCount"></span>
+
+  <div class="toolbar__more" id="toolbarMore">
+    <div class="toolbar__row toolbar__row--sub">
+      <select class="sortSelect" id="sort" aria-label="排序方式">
+        <option value="default">默认排序</option>
+        <option value="likes">最多点赞</option>
+        <option value="views">最多浏览</option>
+        <option value="comments">最多评论</option>
+      </select>
+      <button class="btn-ghost" id="reset">重置</button>
+    </div>
+    <div class="filters" id="genreFilters"></div>
+    <div class="filters" id="authorFilters"></div>
+    <div class="filters">
+      <span class="filters__label">其他</span>
+      <button class="chip" id="markOnly" data-toggle="onlyMark" aria-pressed="false">只看收藏<small id="markCount">0</small></button>
+      <button class="chip" id="mineOnly" data-toggle="onlyMine" aria-pressed="false">我的作品<small id="mineCount">0</small></button>
+      <button class="btn-primary" id="btnPublish" hidden>＋ 发布作品</button>
+      <span class="toolbar__count" id="hitCount"></span>
+    </div>
   </div>
 </div>
 
@@ -1246,6 +1299,17 @@ const SORTS = {
   comments: (a, b) => Store.stat(pid(b)).comments.length - Store.stat(pid(a)).comments.length
 };
 
+/* 折叠状态下的角标：让收起来的筛选条件仍然看得见（收着不等于没生效） */
+function updateFilterBadge(){
+  const n = (state.genre  !== '全部' ? 1 : 0)
+          + (state.author !== '全部' ? 1 : 0)
+          + (state.onlyMark ? 1 : 0)
+          + (state.onlyMine ? 1 : 0);
+  const b = $('#filterBadge');
+  b.hidden = n === 0;
+  b.textContent = String(n);
+}
+
 /* ---- 渲染 ---- */
 function render(newId){
   const ts   = terms();
@@ -1286,6 +1350,7 @@ function render(newId){
     ? `筛出 ${list.length} 首` : '';
   $('#markCount').textContent = Store.markedCount();
   $('#mineCount').textContent = Auth.user() ? Works.mine().length : 0;
+  updateFilterBadge();
   applyClamp();
 }
 
@@ -1420,6 +1485,12 @@ document.addEventListener('click', e => {
 
 $('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
 $('#sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
+
+/* 手机端「筛选」面板开合。桌面端 CSS 上面板恒显，这个类不影响 */
+$('#filterToggle').addEventListener('click', () => {
+  const open = $('#toolbarMore').classList.toggle('is-open');
+  $('#filterToggle').setAttribute('aria-expanded', String(open));
+});
 $('#reset').addEventListener('click', () => {
   Object.assign(state, { q: '', genre: '全部', author: '全部', sort: 'default',
                          onlyMark: false, onlyMine: false });
@@ -1626,7 +1697,7 @@ function renderAuthBar(){
   $('#authbar').innerHTML = nick
     ? `<span class="authbar__who">笔名 <b>${esc(nick)}</b></span>
        <button type="button" class="btn-ghost" id="btnLogout">退出</button>`
-    : `<button type="button" class="btn-primary" id="btnLogin">登录 / 注册</button>`;
+    : `<button type="button" class="btn-primary" id="btnLogin" aria-label="登录或注册">登录</button>`;
   $('#btnPublish').hidden = !nick;
   $('#mineCount').textContent = nick ? Works.mine().length : 0;
   if (!nick) state.onlyMine = false;
