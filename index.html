@@ -615,6 +615,52 @@ mark{
 .act--edit{ color: var(--seal); }
 .act--del:hover{ color: #b23b2e; }
 
+/* ============================================================
+   9. 诗配画：卡片封面 + 弹窗「左画右诗」
+   ============================================================ */
+/* 卡片封面用 object-fit: contain 而不是 cover——
+   画不该被裁掉构图。四周留出纸色底，看起来就像册页的装裱边。 */
+.poem__cover{
+  aspect-ratio: 4 / 5;
+  margin: 0 0 16px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f3ede0;
+  box-shadow: inset 0 0 0 1px rgb(122 104 74 / .12);
+}
+.poem__cover img{ display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* 弹窗：宽屏并排，窄屏自动变「上画下诗」 */
+.poem-body-wrap{ display: grid; gap: 26px; grid-template-columns: minmax(0, 1fr); }
+.painting{ margin: 0; }
+.painting__img{
+  display: block;
+  width: auto; height: auto;
+  max-width: 100%;
+  max-height: 54vh;
+  margin-inline: auto;
+  border-radius: 4px;
+  background: #f3ede0;
+  box-shadow: 0 8px 26px rgb(60 50 30 / .2);
+}
+.painting__credit{
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  letter-spacing: .03em;
+  color: var(--ink-faint);
+  text-align: center;
+}
+.painting__credit a{ color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.painting__credit a:hover{ color: var(--ink-soft); }
+.modal__panel.is-ink .painting{ display: none; }     /* 书法模式回到纯宣纸 */
+
+@media (min-width: 820px){
+  .modal__panel.has-art:not(.is-ink) .poem-body-wrap{
+    grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+    align-items: center;
+  }
+}
+
 @media (max-width: 720px){
   .hero{ padding: 40px 20px 26px; }
   .hero__vertical{ display: none; }
@@ -691,12 +737,18 @@ mark{
     <button class="modal__close" data-close aria-label="关闭">&times;</button>
     <p class="modal__genre" id="mGenre"></p>
     <h2 class="modal__title" id="mTitle"></h2>
-    <div class="ink-stage">
-      <div class="ink-paper">
-        <div class="modal__text" id="mText"></div>
-        <span class="ink-seal" aria-hidden="true"></span>
+    <div class="poem-body-wrap" id="bodyWrap">
+      <figure class="painting" id="mPainting" hidden>
+        <img class="painting__img" id="mArt" alt="">
+        <figcaption class="painting__credit" id="mCredit"></figcaption>
+      </figure>
+      <div class="ink-stage">
+        <div class="ink-paper">
+          <div class="modal__text" id="mText"></div>
+          <span class="ink-seal" aria-hidden="true"></span>
+        </div>
+        <p class="ink-hint" id="inkHint"></p>
       </div>
-      <p class="ink-hint" id="inkHint"></p>
     </div>
     <div class="modal__meta">
       <span id="mAuthor"></span>
@@ -804,6 +856,7 @@ mark{
     <b>本页为排版演示（DEMO）</b>：全部诗句与作者名均为虚构示例，仅用于展示板块布局与交互效果，并非真实投稿。<br>
     <b>浏览 / 点赞 / 收藏 / 评论</b>目前只存在访问者自己的浏览器里，换人换设备各看各的；要全站共享需接入后端（Waline / Twikoo 等）。<br>
     <b>登录 / 发布作品</b>同样是演示：账号和提交的作品只存在你自己的浏览器里，不会发往服务器，<b>也不是真正的安全认证</b>——真实版本必须由后端做（注册登录接口 + 密码哈希 + 数据库）。<br>
+    <b>配图</b>为公有领域古画，取自克利夫兰艺术博物馆 Open Access（<b>CC0</b>，可自由使用、修改、商用，无需授权）；换成社员自己的画时，替换 <code>images/art/</code> 下的文件即可。<br>
     正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据，并把 <code>Store / Auth / Works</code> 三个对象换成接口请求。
   </p>
 </footer>
@@ -1050,6 +1103,61 @@ Works.load();
 /* 页面真正渲染的列表 = 用户上传的作品（新→旧）+ 内置示例作品 */
 const ALL = () => [...Works.list, ...POEMS];
 
+/* ============================================================
+   ★ 配图：作品标题 → 画作
+   ------------------------------------------------------------
+   素材来自克利夫兰艺术博物馆 Open Access，均为**公有领域（CC0）**，
+   可自由使用、修改、商用，无需授权；页面上仍标注出处。
+   换图：直接替换 images/art/ 里的文件，或在这里改路径；
+        想给某一首单独配图，就在那首诗的数据里写
+        image: { src, thumb, credit, page }，会覆盖这张表。
+   ⚠️ 图片是独立文件：只把 index.html 单独发给别人时图片不会跟过去，
+      那时封面会自动隐藏（下面的 error 兜底），诗句照常显示，不会出现破图。
+   ============================================================ */
+const ART = {
+  '晚归':       { src:'images/art/wangui.webp',    thumb:'images/art/wangui-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Album of Seasonal Landscapes, Leaf A · 1668 · 佚名',
+                  page:'https://www.clevelandart.org/art/1955.302.4' },
+  '雨夜':       { src:'images/art/yuye.webp',      thumb:'images/art/yuye-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Bamboo in the Wind · 1300s · 佚名',
+                  page:'https://www.clevelandart.org/art/1953.246' },
+  '山行':       { src:'images/art/shanxing.webp',  thumb:'images/art/shanxing-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Album of Seasonal Landscapes, Leaf D · 1668 · 佚名',
+                  page:'https://www.clevelandart.org/art/1955.302.2' },
+  '观荷':       { src:'images/art/guanhe.webp',    thumb:'images/art/guanhe-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Lotus and Rocks · 1598–1652 · 佚名',
+                  page:'https://www.clevelandart.org/art/1979.27.1.6' },
+  '秋兴':       { src:'images/art/qiuxing.webp',   thumb:'images/art/qiuxing-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Album of Seasonal Landscapes, Leaf G · 1668 · 佚名',
+                  page:'https://www.clevelandart.org/art/1955.302.7' },
+  '浣溪沙·初夏': { src:'images/art/huanxisha.webp', thumb:'images/art/huanxisha-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Insects and Bamboo · 1200s · 佚名',
+                  page:'https://www.clevelandart.org/art/1985.364' },
+  '夜坐':       { src:'images/art/yezuo.webp',     thumb:'images/art/yezuo-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'The Poet Lin Bu Wandering in the Moonlight · 1400s · 佚名',
+                  page:'https://www.clevelandart.org/art/1954.582' },
+  '旧书':       { src:'images/art/jiushu.webp',    thumb:'images/art/jiushu-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Scholar Reading in a Thatched Hut by a Waterfall · 1598–1652',
+                  page:'https://www.clevelandart.org/art/1979.27.2.18' },
+  '赠别':       { src:'images/art/zengbie.webp',   thumb:'images/art/zengbie-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Willow and Magpie · 1200s · 佚名',
+                  page:'https://www.clevelandart.org/art/1982.53' },
+  '村居':       { src:'images/art/cunju.webp',     thumb:'images/art/cunju-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Album of Seasonal Landscapes, Leaf H · 1668 · 佚名',
+                  page:'https://www.clevelandart.org/art/1955.302.8' },
+  '西江月·夜读': { src:'images/art/xijiangyue.webp', thumb:'images/art/xijiangyue-thumb.webp',
+                  credit:'克利夫兰艺术博物馆 · CC0', note:'Plum Blossoms in Moonlight · 1300s · 佚名',
+                  page:'https://www.clevelandart.org/art/1978.49' }
+};
+/* 内置作品按标题查表；用户发布的作品只认自己带的 image，不会误挂到同名内置作品上 */
+const imageOf = p => p.image || (!p.by && ART[p.title]) || null;
+
+/* 图片 404 兜底：只把 index.html 单独发人时 images/ 不在，
+   浏览器会报错——此时把整个封面块移除，诗句照常显示，不留破图 */
+document.addEventListener('error', e => {
+  if (e.target && e.target.tagName === 'IMG') e.target.closest('.poem__cover')?.remove();
+}, true);
+
 /* ---- 初始化页头文案 ---- */
 document.title = `${SITE.name} · 作品`;
 $('.hero__sub').textContent = `${SITE.name} · ${SITE.subtitle}`;
@@ -1139,9 +1247,11 @@ function render(newId){
   box.innerHTML = list.map(p => {
     const id = pid(p), s = Store.stat(id);
     const mine = p.by && p.by === Auth.user();     // 自己发布的才能编辑/删除
+    const art  = imageOf(p);
     return `
       <article class="poem${p.id === newId ? ' is-new' : ''}" data-pid="${esc(id)}"
                tabindex="0" role="button" aria-label="查看《${esc(p.title)}》全文">
+        ${art ? `<div class="poem__cover"><img src="${esc(art.thumb)}" alt="" loading="lazy" decoding="async"></div>` : ''}
         <div class="poem__top">
           <span class="tag">${esc(p.genre)}</span>
           <time class="poem__date">${esc(p.date)}</time>
@@ -1352,6 +1462,30 @@ function renderComments(id){
     </li>`).join('');
 }
 
+/* 把配图放进弹窗；没有配图就整块收起，只剩诗 */
+function applyArt(p){
+  const art   = imageOf(p);
+  const panel = $('.modal__panel');
+  const fig   = $('#mPainting');
+
+  if (!art){
+    panel.classList.remove('has-art');
+    fig.hidden = true;
+    $('#mArt').removeAttribute('src');
+    $('#mCredit').textContent = '';
+    return;
+  }
+  panel.classList.add('has-art');
+  fig.hidden = false;
+  $('#mArt').src = art.src;
+  $('#mArt').alt = art.note || '配图';
+  // 出处挂在链接上，鼠标悬停能看到完整的作品名与年代
+  $('#mCredit').innerHTML = art.page
+    ? `<a href="${esc(art.page)}" target="_blank" rel="noopener noreferrer"
+          title="${esc(art.note || '')}">${esc(art.credit)}${art.note ? ' · ' + esc(art.note.split(' · ')[0]) : ''}</a>`
+    : esc(art.credit);
+}
+
 function openModal(id, toComments = false){
   const p = findPoem(id);
   if (!p) return;
@@ -1363,6 +1497,7 @@ function openModal(id, toComments = false){
   $('#mAuthor').textContent = p.author;
   $('#mDate').textContent   = p.date;
 
+  applyArt(p);                              // 有配图就并排展示，没有就收起
   Store.bumpView(id);                       // 打开一次记一次浏览（本机版＝你自己的次数）
   syncModal(id);
   syncCard(id);
