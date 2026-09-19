@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诗社作品板块 · DEMO 演示</title>
+<style>
+/* ============================================================
+   设计变量：改这里就能换整套配色 / 字体
+   ============================================================ */
+:root{
+  --paper:      #f6f2e9;   /* 页面底色：宣纸 */
+  --card:       #fffdf8;   /* 卡片底色 */
+  --ink:        #1f1d1a;   /* 主文字：墨 */
+  --ink-soft:   #5c5750;   /* 次要文字 */
+  --ink-faint:  #948c80;   /* 弱化文字 */
+  --line:       #e5ded0;   /* 分隔线 */
+  --seal:       #a8342a;   /* 点缀：朱砂 */
+  --shadow:     0 1px 2px rgb(60 50 30 / .06);
+
+  --serif: "Songti SC","STSong","Noto Serif SC","Source Han Serif SC","SimSun",Georgia,serif;
+  --sans:  system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+
+*{ box-sizing: border-box; }
+html{ -webkit-text-size-adjust: 100%; }
+body{
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  /* 宣纸质感：极淡的斜纹，不需要可以删掉这一行 */
+  background-image: repeating-linear-gradient(45deg, rgb(0 0 0 /.012) 0 1px, transparent 1px 4px);
+}
+button{ font: inherit; color: inherit; cursor: pointer; }
+:focus-visible{ outline: 2px solid var(--seal); outline-offset: 2px; border-radius: 4px; }
+
+/* ============================================================
+   1. 页头
+   ============================================================ */
+.hero{
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 64px 24px 36px;
+  overflow: hidden;
+}
+.hero__eyebrow{
+  margin: 0 0 14px;
+  font-size: 12px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+/* 演示标记：交付给组长/组员时一眼能看出这是 DEMO 而不是正式页 */
+.demo-badge{
+  margin-left: 10px;
+  padding: 2px 9px;
+  border: 1px dashed var(--seal);
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--seal);
+}
+.hero__title{
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(34px, 6vw, 54px);
+  font-weight: 500;
+  letter-spacing: .12em;
+}
+.hero__sub{
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  letter-spacing: .04em;
+}
+.hero__stats{
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  max-width: 420px;
+  color: var(--ink-faint);
+  font-size: 13px;
+  letter-spacing: .1em;
+}
+/* 朱砂印章 */
+.seal{
+  position: absolute;
+  top: 70px; right: 26px;
+  width: 60px; height: 60px;
+  display: grid; place-items: center;
+  border: 2px solid var(--seal);
+  border-radius: 6px;
+  color: var(--seal);
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1;
+  opacity: .85;
+  transform: rotate(-4deg);
+  user-select: none;
+}
+/* 右侧竖排装饰句 */
+.hero__vertical{
+  position: absolute;
+  top: 60px; right: 120px;
+  writing-mode: vertical-rl;
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: .4em;
+  color: var(--ink-faint);
+  opacity: .7;
+  user-select: none;
+}
+
+/* ============================================================
+   2. 工具栏：搜索 + 筛选
+   ============================================================ */
+.toolbar{
+  position: sticky; top: 0; z-index: 20;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 14px 24px 16px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.toolbar__row{ display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.search{ position: relative; flex: 1; max-width: 420px; }
+.search input{
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+.search input::placeholder{ color: var(--ink-faint); }
+
+.filters{
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 8px;
+}
+.filters__label{
+  align-self: center;
+  margin-right: 2px;
+  font-size: 12px;
+  letter-spacing: .16em;
+  color: var(--ink-faint);
+}
+.chip{
+  padding: 5px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ink-soft);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.chip:hover{ border-color: var(--ink-faint); color: var(--ink); }
+.chip[aria-pressed="true"]{
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.chip small{ opacity: .55; margin-left: 4px; font-size: 11px; }
+
+.btn-ghost{
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.btn-ghost:hover{ border-color: var(--ink-faint); color: var(--ink); }
+
+/* ============================================================
+   3. 作品瀑布流
+   ------------------------------------------------------------
+   文字长短不一时，CSS 多列 (columns) 是最省事的瀑布流方案：
+   卡片自动按内容高度错落排列，不需要 JS 计算。
+   代价：阅读顺序是「先填满第一列」而不是从左到右逐行。
+   ============================================================ */
+.works{
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  column-count: 3;          /* 最多 3 列 */
+  column-width: 300px;      /* 每列最窄 300px，窄屏自动减列 */
+  column-gap: 22px;
+}
+.poem{
+  break-inside: avoid;      /* 关键：不让一张卡片被拆到两列 */
+  margin: 0 0 22px;
+  padding: 22px 22px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.poem:hover{
+  transform: translateY(-3px);
+  border-color: #d8cfbc;
+  box-shadow: 0 10px 26px rgb(60 50 30 / .11);
+}
+.poem__top{
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.tag{
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--seal) 35%, transparent);
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--seal);
+}
+.poem__date{ font-size: 12px; color: var(--ink-faint); letter-spacing: .06em; }
+.poem__title{
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: .06em;
+}
+/* 诗句正文：衬线 + 行高 2 + 保留换行 */
+.poem__body{
+  position: relative;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 2;
+  letter-spacing: .04em;
+  white-space: pre-line;    /* 让 \n 真正换行 */
+  color: var(--ink);
+}
+/* 折叠高度由 JS 实测行高后写进 --clamp-h，字号改了也不会错位 */
+.poem__body.is-clamped{ max-height: var(--clamp-h, 12rem); overflow: hidden; }
+.poem__body.is-clamped::after{
+  content:"";
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3rem;
+  background: linear-gradient(transparent, var(--card));
+  pointer-events: none;
+}
+.poem__more{
+  margin-top: 6px;
+  padding: 0;
+  border: 0; background: none;
+  font-size: 13px;
+  color: var(--seal);
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+.poem__foot{
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  font-size: 13px;
+}
+.poem__author{ color: var(--ink-soft); letter-spacing: .08em; }
+.poem__hint{ color: var(--ink-faint); font-size: 12px; opacity: 0; transition: opacity .2s; }
+.poem:hover .poem__hint{ opacity: 1; }
+
+.empty{
+  max-width: 1240px; margin: 0 auto; padding: 60px 24px 100px;
+  text-align: center; color: var(--ink-faint); font-family: var(--serif);
+}
+
+/* ============================================================
+   4. 全文弹窗（支持竖排）
+   ============================================================ */
+.modal{ position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; }
+.modal[hidden]{ display: none; }
+.modal__backdrop{
+  position: absolute; inset: 0;
+  background: rgb(31 29 26 / .45);
+  backdrop-filter: blur(3px);
+  animation: fade .2s ease;
+}
+.modal__panel{
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 40px 40px 24px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / .28);
+  animation: rise .26s cubic-bezier(.22,1,.36,1);
+}
+@keyframes fade{ from{ opacity:0 } }
+@keyframes rise{ from{ opacity:0; transform: translateY(14px) } }
+.modal__close{
+  position: absolute; top: 12px; right: 14px;
+  width: 34px; height: 34px;
+  border: 0; background: none;
+  font-size: 24px; line-height: 1;
+  color: var(--ink-faint);
+}
+.modal__close:hover{ color: var(--ink); }
+.modal__genre{ margin: 0 0 10px; font-size: 12px; letter-spacing: .18em; color: var(--seal); }
+.modal__title{
+  margin: 0 0 22px;
+  font-family: var(--serif); font-size: 28px; font-weight: 500; letter-spacing: .1em;
+}
+.modal__text{
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 2.1;
+  letter-spacing: .06em;
+  white-space: pre-line;
+}
+/* 竖排模式：writing-mode 会把每个 \n 变成新的一列（从右往左）
+   注意：竖排时 line-height 控制的是「字与字的纵向步进」也就是列内字距，
+   所以这里必须收紧，否则一行还没排完就换列了。 */
+.modal__text.is-vertical{
+  writing-mode: vertical-rl;
+  line-height: 1.6;
+  height: 52vh;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 4px 2px;
+}
+.modal__meta{
+  display: flex; justify-content: space-between;
+  margin-top: 26px; padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--ink-soft); letter-spacing: .08em;
+}
+.modal__actions{ display: flex; gap: 10px; margin-top: 16px; }
+
+/* ============================================================
+   5. 页脚说明
+   ============================================================ */
+.site-foot{
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+.site-foot__inner{
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 2;
+}
+.site-foot b{ color: var(--seal); font-weight: 600; }
+.site-foot code{
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / .05);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 720px){
+  .hero{ padding: 40px 20px 26px; }
+  .hero__vertical{ display: none; }
+  .seal{ top: 44px; right: 20px; width: 48px; height: 48px; font-size: 24px; }
+  .toolbar{ padding: 12px 20px 14px; }
+  .works{ padding: 22px 20px 60px; column-gap: 16px; }
+  .site-foot{ padding: 0 20px 48px; }
+  .poem{ padding: 18px 18px 14px; margin-bottom: 16px; }
+  .modal__panel{ padding: 32px 22px 20px; }
+  .modal__text.is-vertical{ height: 38vh; }
+}
+
+/* 尊重「减少动效」系统偏好 */
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 页头 ========== -->
+<header class="hero">
+  <p class="hero__eyebrow">Poetry · 作品板块<span class="demo-badge">DEMO 演示</span></p>
+  <h1 class="hero__title">诗社作品</h1>
+  <p class="hero__sub">槐荫诗社 · 同学们写的诗与词</p>
+  <p class="hero__stats" id="stats">共 0 首 · 0 位作者</p>
+  <div class="seal" aria-hidden="true">诗</div>
+  <div class="hero__vertical" aria-hidden="true">诗者志之所之也</div>
+</header>
+
+<!-- ========== 工具栏 ========== -->
+<div class="toolbar">
+  <div class="toolbar__row">
+    <label class="search">
+      <input id="q" type="search" placeholder="搜索标题、诗句或作者…" autocomplete="off">
+    </label>
+    <button class="btn-ghost" id="reset">重置</button>
+  </div>
+  <div class="filters" id="genreFilters"></div>
+  <div class="filters" id="authorFilters"></div>
+</div>
+
+<!-- ========== 作品瀑布流 ========== -->
+<main class="works" id="works"></main>
+<p class="empty" id="empty" hidden>没有找到符合条件的作品</p>
+
+<!-- ========== 全文弹窗 ========== -->
+<div class="modal" id="modal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <button class="modal__close" data-close aria-label="关闭">&times;</button>
+    <p class="modal__genre" id="mGenre"></p>
+    <h2 class="modal__title" id="mTitle"></h2>
+    <div class="modal__text" id="mText"></div>
+    <div class="modal__meta">
+      <span id="mAuthor"></span>
+      <time id="mDate"></time>
+    </div>
+    <div class="modal__actions">
+      <button class="btn-ghost" id="mVertical" aria-pressed="false">竖排阅读</button>
+      <button class="btn-ghost" id="mCopy">复制全文</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 页脚说明 ========== -->
+<footer class="site-foot">
+  <p class="site-foot__inner">
+    <b>本页为排版演示（DEMO）</b>：全部诗句与作者名均为虚构示例，仅用于展示板块布局与交互效果，并非真实投稿。<br>
+    正式版请替换 <code>index.html</code> 中 <code>POEMS</code> 数组里的作品数据。
+  </p>
+</footer>
+
+<script>
+/* ============================================================
+   ★ 只改这里：作品数据
+   ------------------------------------------------------------
+   lines 数组里每一项是「一句」，一句一行显示（诗词就该这么排）。
+   加新作品 = 往 POEMS 里追加一个对象，刷新页面即可。
+   · 词要分上下阕：中间插一个空字符串 '' 就是空一行 / 竖排时留一列白。
+   · 超过 CLAMP_LINES 行的作品会自动折叠出「展开全文」按钮。
+   ⚠️ 下面全部是示例数据（作者名为虚构），请替换成诗社真实作品。
+   ============================================================ */
+const SITE = {
+  name: '东亭诗社',
+  subtitle: '排版演示 · 诗句与作者均为示例数据'
+};
+
+const POEMS = [
+  { title:'晚归', author:'江砚', genre:'七绝', date:'2026-03',
+    lines:['山影斜分一半云，','溪声暗送晚来曛。','柴门未掩灯先亮，','知有邻翁送酒勤。'] },
+
+  { title:'雨夜', author:'林见月', genre:'七绝', date:'2026-04',
+    lines:['檐角垂珠夜未阑，','一灯如豆照书寒。','风来忽作千山响，','吹落梧桐满院残。'] },
+
+  { title:'山行', author:'顾行舟', genre:'五绝', date:'2026-02',
+    lines:['石径随云转，','松风入袖凉。','不知山远近，','唯觉草花香。'] },
+
+  { title:'观荷', author:'苏晚', genre:'七绝', date:'2026-06',
+    lines:['一池绿水半池风，','荷气浮来雨气中。','小艇不知何处去，','蜻蜓立在断莲蓬。'] },
+
+  { title:'秋兴', author:'程鹤', genre:'七律', date:'2026-09',
+    lines:['霜落平芜万木稀，','孤城鼓角送斜晖。','云连远塞书难寄，','风卷长河雁不归。',
+           '十载江湖成底事，','一囊诗卷负初衣。','西窗又听梧桐雨，','点滴分明似旧时。'] },
+
+  // 词：空字符串 '' 会渲染成一个空行，竖排时就是一列留白，用来分隔上下阕
+  { title:'浣溪沙·初夏', author:'白露', genre:'词', date:'2026-05',
+    lines:['小雨初收夏气清，','绿阴深处一蝉鸣。','曲栏干外水纹平。',
+           '',
+           '团扇未摇风自至，','荷钱初展露微明。','闲心付与晚来晴。'] },
+
+  { title:'夜坐', author:'江砚', genre:'五绝', date:'2026-08',
+    lines:['露重萤犹湿，','更深夜转长。','推窗无一事，','月色满空廊。'] },
+
+  { title:'旧书', author:'周听雪', genre:'七绝', date:'2026-01',
+    lines:['夹页犹存旧日香，','一行批注半遗忘。','多年不读君名字，','忽见签名泪两行。'] },
+
+  { title:'给', author:'林见月', genre:'现代诗', date:'2026-07',
+    lines:['我把窗口留给你','连同这个城市','最晚熄灭的那盏灯'] },
+
+  { title:'赠别', author:'顾行舟', genre:'七绝', date:'2026-05',
+    lines:['长亭一别各西东，','柳色经年绿又空。','莫问归期何日是，','江南三月正花红。'] },
+
+  { title:'村居', author:'苏晚', genre:'五律', date:'2026-04',
+    lines:['结屋依山脚，','开门见水田。','春耕牛背雨，','秋获担头烟。',
+           '客至无他事，','茶煎只自便。','平生欢在此，','不羡酒中仙。'] },
+
+  { title:'西江月·夜读', author:'程鹤', genre:'词', date:'2026-10',
+    lines:['灯下三更未倦，','案头一卷初开。','古人谈笑似同来，','风雨隔窗不改。',
+           '',
+           '偶得佳句自喜，','不知鬓已成霜。','合书推枕月当窗，','正是凉宵堪赏。'] },
+
+  { title:'归途', author:'周听雪', genre:'现代诗', date:'2026-11',
+    lines:['末班车拖着长长的影子','我数着窗上的雨点','像数这一年没说完的话'] }
+];
+
+/* ============================================================
+   以下逻辑一般不用改
+   ============================================================ */
+const CLAMP_LINES = 6;                       // 超过几行折叠
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const state = { q: '', genre: '全部', author: '全部' };
+
+/* ---- 初始化页头文案 ---- */
+document.title = `${SITE.name} · 作品`;
+$('.hero__sub').textContent = `${SITE.name} · ${SITE.subtitle}`;
+$('#stats').textContent = `共 ${POEMS.length} 首 · ${new Set(POEMS.map(p => p.author)).size} 位作者`;
+
+/* ---- 生成筛选项：按出现次数排序 ---- */
+function countBy(key){
+  const m = new Map();
+  POEMS.forEach(p => m.set(p[key], (m.get(p[key]) || 0) + 1));
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function buildChips(el, label, key, values){
+  el.innerHTML = `<span class="filters__label">${label}</span>`;
+  values.forEach(([name, n]) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.dataset.key = key;
+    b.dataset.value = name;
+    b.setAttribute('aria-pressed', String(state[key] === name));
+    b.innerHTML = `${name}<small>${n}</small>`;
+    el.appendChild(b);
+  });
+}
+buildChips($('#genreFilters'),  '体裁', 'genre',
+  [['全部', POEMS.length], ...countBy('genre')]);
+buildChips($('#authorFilters'), '作者', 'author',
+  [['全部', POEMS.length], ...countBy('author')]);
+
+/* ---- 筛选 ---- */
+function match(p){
+  if (state.genre  !== '全部' && p.genre  !== state.genre)  return false;
+  if (state.author !== '全部' && p.author !== state.author) return false;
+  const q = state.q.trim().toLowerCase();
+  if (!q) return true;
+  return (p.title + p.author + p.genre + p.lines.join('')).toLowerCase().includes(q);
+}
+
+/* ---- 转义，防止诗句里的 < > 破坏结构 ---- */
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+/* ---- 渲染 ---- */
+function render(){
+  const list = POEMS.filter(match);
+  const box = $('#works');
+
+  // 只负责把卡片画出来；「要不要折叠」交给 applyClamp() 按实测高度决定
+  box.innerHTML = list.map(p => {
+    const id = POEMS.indexOf(p);
+    return `
+      <article class="poem" data-id="${id}" tabindex="0" role="button"
+               aria-label="查看《${esc(p.title)}》全文">
+        <div class="poem__top">
+          <span class="tag">${esc(p.genre)}</span>
+          <time class="poem__date">${esc(p.date)}</time>
+        </div>
+        <h3 class="poem__title">${esc(p.title)}</h3>
+        <div class="poem__body">${esc(p.lines.join('\n'))}</div>
+        <div class="poem__foot">
+          <span class="poem__author">${esc(p.author)}</span>
+          <span class="poem__hint">点击阅读</span>
+        </div>
+      </article>`;
+  }).join('');
+
+  $('#empty').hidden = list.length > 0;
+  applyClamp();
+}
+
+/* ---- 折叠：按「实测高度」而不是行数决定 ----
+   数行数在数据形态变化时很容易失效（一行装一联、长句自动折行都会算错），
+   直接量真实高度最稳。先全部展开量一遍，再逐张决定，
+   列宽由 column-count 决定、与内容高度无关，所以前面的折叠不影响后面的测量。 */
+function applyClamp(){
+  const cards  = $$('.poem');
+  const bodies = cards.map(c => c.querySelector('.poem__body'));
+
+  cards.forEach((card, i) => {                       // 第一遍：全部复位
+    card.style.removeProperty('--clamp-h');
+    bodies[i].classList.remove('is-clamped');
+    card.querySelector('.poem__more')?.remove();
+  });
+
+  cards.forEach((card, i) => {                       // 第二遍：超高的才折叠
+    const body = bodies[i];
+    const lh   = parseFloat(getComputedStyle(body).lineHeight) || 32;
+    const max  = lh * CLAMP_LINES;
+    if (body.scrollHeight <= max + 2) return;
+
+    card.style.setProperty('--clamp-h', max + 'px');  // 折叠高度跟着真实行高走
+    body.classList.add('is-clamped');
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'poem__more';
+    btn.textContent = '展开全文';
+    btn.setAttribute('aria-expanded', 'false');
+    body.insertAdjacentElement('afterend', btn);      // 按钮紧跟正文
+  });
+}
+
+/* ---- 工具栏交互（事件委托，筛选后不用重新绑定） ---- */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (chip){
+    state[chip.dataset.key] = chip.dataset.value;
+    $$('.chip').forEach(c => {
+      if (c.dataset.key === chip.dataset.key)
+        c.setAttribute('aria-pressed', String(c.dataset.value === chip.dataset.value));
+    });
+    render();
+    return;
+  }
+
+  const more = e.target.closest('.poem__more');
+  if (more){                                  // 展开/收起，不触发弹窗
+    e.stopPropagation();
+    const body = more.previousElementSibling;              // 按钮紧跟正文
+    const open = !body.classList.toggle('is-clamped');     // toggle 返回「现在是否折叠」
+    more.textContent = open ? '收起' : '展开全文';
+    more.setAttribute('aria-expanded', String(open));
+    return;
+  }
+
+  const card = e.target.closest('.poem');
+  if (card) openModal(Number(card.dataset.id));
+});
+
+$('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
+$('#reset').addEventListener('click', () => {
+  state.q = ''; state.genre = '全部'; state.author = '全部';
+  $('#q').value = '';
+  $$('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.value === '全部')));
+  render();
+});
+
+/* ---- 弹窗 ---- */
+let current = null;
+
+function openModal(id){
+  const p = POEMS[id];
+  if (!p) return;
+  current = p;
+  $('#mGenre').textContent  = p.genre;
+  $('#mTitle').textContent  = p.title;
+  $('#mText').textContent   = p.lines.join('\n');
+  $('#mAuthor').textContent = p.author;
+  $('#mDate').textContent   = p.date;
+  setVertical(false);
+  $('#modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('.modal__close').focus();
+}
+
+function closeModal(){
+  $('#modal').hidden = true;
+  document.body.style.overflow = '';
+  current = null;
+}
+
+function setVertical(on){
+  $('#mText').classList.toggle('is-vertical', on);
+  $('#mVertical').setAttribute('aria-pressed', String(on));
+  $('#mVertical').textContent = on ? '横排阅读' : '竖排阅读';
+}
+
+$('#modal').addEventListener('click', e => {
+  if (e.target.closest('[data-close]')) closeModal();
+});
+$('#mVertical').addEventListener('click', () => {
+  setVertical($('#mText').classList.contains('is-vertical') === false);
+});
+$('#mCopy').addEventListener('click', async e => {
+  if (!current) return;
+  const text = `《${current.title}》 ${current.author}\n\n${current.lines.join('\n')}`;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  e.target.textContent = '已复制';
+  setTimeout(() => e.target.textContent = '复制全文', 1400);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+  // 卡片支持键盘打开
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('poem')){
+    e.preventDefault(); openModal(Number(e.target.dataset.id));
+  }
+});
+
+render();
+
+/* 字体加载完成、以及窗口尺寸变化（列数变了折行也会变）之后，重新判定要不要折叠 */
+let _rt;
+addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(applyClamp, 150); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyClamp);
+</script>
+</body>
+</html>
